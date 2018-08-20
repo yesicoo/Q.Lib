@@ -52,7 +52,8 @@ namespace Q.Lib.Model
                     p.WaitForExit();
                     p.Close();
                 }
-
+                QLog.SendLog(pName + escapedArgs);
+                QLog.SendLog(result_Str);
                 return result_Str;
             }
             catch (Exception ex)
