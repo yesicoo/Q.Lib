@@ -23,11 +23,16 @@ namespace Q.Lib.Model
             Arguments += " " + p.Trim();
             return this;
         }
+        public Shell AddPath(string p)
+        {
+            Arguments += " \"" + p.Trim()+"\"";
+            return this;
+        }
 
         public string Run()
         {
             var result_Str = "";
-            var escapedArgs = Arguments.Replace("\"", "\\\"");
+            var escapedArgs = Arguments;//.Replace("\"", "\\\"");
             try
             {
 
@@ -52,13 +57,13 @@ namespace Q.Lib.Model
                     p.WaitForExit();
                     p.Close();
                 }
-                QLog.SendLog(pName + escapedArgs);
-                QLog.SendLog(result_Str);
+                QLog.SendLog(pName + escapedArgs+"\r\n"+ result_Str);
+               
                 return result_Str;
             }
             catch (Exception ex)
             {
-
+                QLog.SendLog(ex.Message+":"+pName);
                 return ex.Message;
             }
         }
