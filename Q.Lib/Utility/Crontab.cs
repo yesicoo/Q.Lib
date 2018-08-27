@@ -324,7 +324,7 @@ namespace Q.Lib
         public long Second;
         public long RemainderSecond;
         /// <summary>
-        /// 1-反复运行 0-定点执行一次 2-定点执行多次
+        /// 1-反复运行 0-定点执行一次 2-定点执行多次 -3周循环
         /// </summary>
         public int RunMode;
         public Action action;
