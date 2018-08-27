@@ -1,5 +1,4 @@
-﻿using Q.Lib.Model;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
@@ -235,14 +234,34 @@ namespace Q.Lib
                     {
                         if (t % x.Value.Second == x.Value.RemainderSecond)
                         {
-                            ThreadPool.QueueUserWorkItem((oo) => { x.Value.action(); }, o);
+                            ThreadPool.QueueUserWorkItem((oo) =>
+                            {
+                                try
+                                {
+                                    x.Value.action();
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex.ToString().SendLog_Exception();
+                                }
+                            }, o);
                         }
                     }
                     else if (x.Value.RunMode == 0)
                     {
                         if (t == x.Value.Second)
                         {
-                            ThreadPool.QueueUserWorkItem((oo) => { x.Value.action(); }, o);
+                            ThreadPool.QueueUserWorkItem((oo) =>
+                            {
+                                try
+                                {
+                                    x.Value.action();
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex.ToString().SendLog_Exception();
+                                }
+                            }, o);
                             actions.TryRemove(x.Key, out QCrontabJob job);
                         }
                     }
@@ -252,10 +271,20 @@ namespace Q.Lib
                         if ((x.Value.SSecond == -1 || now.Second == x.Value.SSecond) &&
                             (x.Value.SMinute == -1 || now.Minute == x.Value.SMinute) &&
                             (x.Value.SHour == -1 || now.Hour == x.Value.SHour) &&
-                            (x.Value.SDay == -1 || now.Hour == x.Value.SDay) &&
+                            (x.Value.SDay == -1 || now.Day == x.Value.SDay) &&
                             (x.Value.SMonth == -1 || now.Month == x.Value.SMonth))
                         {
-                            ThreadPool.QueueUserWorkItem((oo) => { x.Value.action(); }, o);
+                            ThreadPool.QueueUserWorkItem((oo) =>
+                            {
+                                try
+                                {
+                                    x.Value.action();
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex.ToString().SendLog_Exception();
+                                }
+                            }, o);
                         }
 
                     }
@@ -267,7 +296,17 @@ namespace Q.Lib
                             (x.Value.SHour == -1 || now.Hour == x.Value.SHour) &&
                             (x.Value.SWeek == -1 || (int)now.DayOfWeek == x.Value.SWeek))
                         {
-                            ThreadPool.QueueUserWorkItem((oo) => { x.Value.action(); }, o);
+                            ThreadPool.QueueUserWorkItem((oo) =>
+                            {
+                                try
+                                {
+                                    x.Value.action();
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex.ToString().SendLog_Exception();
+                                }
+                            }, o);
                         }
                     }
                 }
