@@ -41,10 +41,7 @@ namespace Q.Lib
             return result;
         }
 
-        public static void Post<T>(object p, T result)
-        {
-            throw new NotImplementedException();
-        }
+       
 
         public static T Post<T>(string url, string parameter)
         {
