@@ -217,9 +217,9 @@ namespace Q.Lib
         /// <param name="func"></param>
         /// <param name="retryInfo"></param>
         /// <returns></returns>
-        public static T HandResult<T>(Expression<Func<T, bool>> expression, int time, TimeSpan wait, Func<T> func, Action<string, int, TimeSpan> retryInfo = null)
+        public static T HandResult<T>(Func<T, bool> exp, int time, TimeSpan wait, Func<T> func, Action<string, int, TimeSpan> retryInfo = null)
         {
-            var exp = expression.Compile();
+           
             return Task.Run(() =>
             {
                 var result = default(T);
