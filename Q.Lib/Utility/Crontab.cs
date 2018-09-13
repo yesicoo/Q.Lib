@@ -11,7 +11,7 @@ namespace Q.Lib
 
         static ConcurrentDictionary<string, QCrontabJob> actions = new ConcurrentDictionary<string, QCrontabJob>();
 
-        public static string RunWithSecond(int second, Action action)
+        public static string RunWithSecond(int second, Action action,string name="")
         {
             string id = QTools.GuidStr();
             QCrontabJob qcj = new QCrontabJob();
@@ -20,10 +20,11 @@ namespace Q.Lib
             qcj.Second = second;
             qcj.RemainderSecond = (DateTime.Now.Ticks / 10000000) % second;
             actions.TryAdd(id, qcj);
+            QLog.SendLog($"添加定时任务 {name}({id})： Loop  {second} Second");
             return id;
         }
 
-        public static string RunOnceWithTime(DateTime dateTime, Action action)
+        public static string RunOnceWithTime(DateTime dateTime, Action action, string name = "")
         {
             if (dateTime < DateTime.Now)
             {
@@ -37,7 +38,7 @@ namespace Q.Lib
                 qcj.action = action;
                 qcj.RunMode = 0;
                 qcj.Second = (dateTime.Ticks / 10000000);
-
+                QLog.SendLog($"添加定时任务 {name}({id})： OnceTime {dateTime}");
                 actions.TryAdd(id, qcj);
                 return id;
             }
@@ -49,7 +50,7 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">执行方法</param>
         /// <returns></returns>
-        public static string RunRepeatWithTimePoint(int second, Action action)
+        public static string RunRepeatWithTimePoint(int second, Action action,string name = "")
         {
             if (second < 0 || second > 59)
             {
@@ -63,7 +64,7 @@ namespace Q.Lib
                 qcj.RunMode = 2;
                 qcj.SSecond = second;
                 actions.TryAdd(id, qcj);
-                QLog.SendLog($"添加定时任务({id})： EverySecond {second}");
+                QLog.SendLog($"添加定时任务 {name}({id})： EverySecond {second}");
                 return id;
             }
         }
@@ -74,7 +75,7 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">执行方法</param>
         /// <returns></returns>
-        public static string RunRepeatWithTimePoint(int min, int second, Action action)
+        public static string RunRepeatWithTimePoint(int min, int second, Action action, string name = "")
         {
             if (second < 0 || second > 59 || min < 0 || min > 59)
             {
@@ -89,7 +90,7 @@ namespace Q.Lib
                 qcj.SSecond = second;
                 qcj.SMinute = min;
                 actions.TryAdd(id, qcj);
-                QLog.SendLog($"添加定时任务({id})：{min}:{second} EveryHours");
+                QLog.SendLog($"添加定时任务 {name}({id})：{min}:{second} EveryHours");
                 return id;
             }
         }
@@ -101,7 +102,7 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">执行方法</param>
         /// <returns></returns>
-        public static string RunRepeatWithTimePoint(int hour, int min, int second, Action action)
+        public static string RunRepeatWithTimePoint(int hour, int min, int second, Action action, string name = "")
         {
             if (second < 0 || second > 59 || min < 0 || min > 59 || hour < 0 || hour > 23)
             {
@@ -117,7 +118,7 @@ namespace Q.Lib
                 qcj.SMinute = min;
                 qcj.SHour = hour;
                 actions.TryAdd(id, qcj);
-                QLog.SendLog($"添加定时任务({id})：{hour}:{min}:{second} EveryDays");
+                QLog.SendLog($"添加定时任务 {name}({id})：{hour}:{min}:{second} EveryDays");
                 return id;
             }
         }
@@ -130,7 +131,7 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">执行方法</param>
         /// <returns></returns>
-        public static string RunRepeatWithTimePoint(int day, int hour, int min, int second, Action action)
+        public static string RunRepeatWithTimePoint(int day, int hour, int min, int second, Action action, string name = "")
         {
             if (second < 0 || second > 59 || min < 0 || min > 59 || hour < 0 || hour > 23 || day < 1 || day > 31)
             {
@@ -147,7 +148,7 @@ namespace Q.Lib
                 qcj.SHour = hour;
                 qcj.SDay = day;
                 actions.TryAdd(id, qcj);
-                QLog.SendLog($"添加定时任务({id})：{hour} {hour}:{min}:{second} EveryMonths");
+                QLog.SendLog($"添加定时任务 {name}({id})：{hour} {hour}:{min}:{second} EveryMonths");
                 return id;
             }
         }
@@ -160,7 +161,7 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">方法</param>
         /// <returns></returns>
-        public static string RunRepeatWithWeek(int week, int hour, int min, int second, Action action)
+        public static string RunRepeatWithWeek(int week, int hour, int min, int second, Action action, string name = "")
         {
             if (second < 0 || second > 59 || min < 0 || min > 59 || hour < 0 || hour > 23 || week < 0 || week > 6)
             {
@@ -176,7 +177,7 @@ namespace Q.Lib
                 qcj.SMinute = min;
                 qcj.SHour = hour;
                 qcj.SWeek = week;
-                QLog.SendLog($"添加定时任务({id})：{week} {hour}:{min}:{second} EveryWeeks");
+                QLog.SendLog($"添加定时任务 {name}({id})：{week} {hour}:{min}:{second} EveryWeeks");
                 actions.TryAdd(id, qcj);
                 return id;
             }
@@ -191,7 +192,7 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">执行方法</param>
         /// <returns></returns>
-        public static string RunRepeatWithTimePoint(int month, int day, int hour, int min, int second, Action action)
+        public static string RunRepeatWithTimePoint(int month, int day, int hour, int min, int second, Action action, string name = "")
         {
             if (second < 0 || second > 59 || min < 0 || min > 59 || hour < 0 || hour > 23 || day < 1 || day > 31 || month < 1 || month > 12)
             {
@@ -209,7 +210,7 @@ namespace Q.Lib
                 qcj.SDay = day;
                 qcj.SMonth = month;
                 actions.TryAdd(id, qcj);
-                QLog.SendLog($"添加定时任务({id})：{month}-{day} {hour}:{min}:{second} EveryYears");
+                QLog.SendLog($"添加定时任务 {name}({id})：{month}-{day} {hour}:{min}:{second} EveryYears");
                 return id;
             }
         }
@@ -234,6 +235,7 @@ namespace Q.Lib
                     {
                         if (t % x.Value.Second == x.Value.RemainderSecond)
                         {
+                            QLog.SendLog_Debug("Run", x.Key);
                             ThreadPool.QueueUserWorkItem((oo) =>
                             {
                                 try
@@ -251,6 +253,7 @@ namespace Q.Lib
                     {
                         if (t == x.Value.Second)
                         {
+                            QLog.SendLog_Debug("Run", x.Key);
                             ThreadPool.QueueUserWorkItem((oo) =>
                             {
                                 try
@@ -274,6 +277,7 @@ namespace Q.Lib
                             (x.Value.SDay == -1 || now.Day == x.Value.SDay) &&
                             (x.Value.SMonth == -1 || now.Month == x.Value.SMonth))
                         {
+                            QLog.SendLog_Debug("Run", x.Key);
                             ThreadPool.QueueUserWorkItem((oo) =>
                             {
                                 try
@@ -296,6 +300,7 @@ namespace Q.Lib
                             (x.Value.SHour == -1 || now.Hour == x.Value.SHour) &&
                             (x.Value.SWeek == -1 || (int)now.DayOfWeek == x.Value.SWeek))
                         {
+                            QLog.SendLog_Debug("Run", x.Key);
                             ThreadPool.QueueUserWorkItem((oo) =>
                             {
                                 try
