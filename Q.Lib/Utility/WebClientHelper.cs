@@ -10,6 +10,7 @@ namespace Q.Lib
 {
     public static class WebClientHelper
     {
+
         public static string Post(string url, string parameter)
         {
             string result = string.Empty;
