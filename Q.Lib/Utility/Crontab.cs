@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Q.Lib
 {
@@ -11,7 +12,7 @@ namespace Q.Lib
 
         static ConcurrentDictionary<string, QCrontabJob> actions = new ConcurrentDictionary<string, QCrontabJob>();
 
-        public static string RunWithSecond(int second, Action action,string name="")
+        public static string RunWithSecond(int second, Action action, string name = "")
         {
             string id = QTools.GuidStr();
             QCrontabJob qcj = new QCrontabJob();
@@ -50,7 +51,7 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">执行方法</param>
         /// <returns></returns>
-        public static string RunRepeatWithTimePoint(int second, Action action,string name = "")
+        public static string RunRepeatWithTimePoint(int second, Action action, string name = "")
         {
             if (second < 0 || second > 59)
             {
@@ -229,80 +230,16 @@ namespace Q.Lib
             long t = (DateTime.Now.Ticks / 10000000);
             actions.AsParallel().ForAll(x =>
             {
-                try
+                Task.Run(() =>
                 {
-                    if (x.Value.RunMode == 1)
+                    try
                     {
-                        if (t % x.Value.Second == x.Value.RemainderSecond)
+                        if (x.Value.RunMode == 1)
                         {
-                            QLog.SendLog_Debug("Run", x.Key);
-                            ThreadPool.QueueUserWorkItem((oo) =>
+                            if (t % x.Value.Second == x.Value.RemainderSecond)
                             {
-                                try
-                                {
-                                    x.Value.action();
-                                }
-                                catch (Exception ex)
-                                {
-                                    ex.ToString().SendLog_Exception();
-                                }
-                            }, o);
-                        }
-                    }
-                    else if (x.Value.RunMode == 0)
-                    {
-                        if (t == x.Value.Second)
-                        {
-                            QLog.SendLog_Debug("Run", x.Key);
-                            ThreadPool.QueueUserWorkItem((oo) =>
-                            {
-                                try
-                                {
-                                    x.Value.action();
-                                }
-                                catch (Exception ex)
-                                {
-                                    ex.ToString().SendLog_Exception();
-                                }
-                            }, o);
-                            actions.TryRemove(x.Key, out QCrontabJob job);
-                        }
-                    }
-                    else if (x.Value.RunMode == 2)
-                    {
-                        var now = DateTime.Now;
-                        if ((x.Value.SSecond == -1 || now.Second == x.Value.SSecond) &&
-                            (x.Value.SMinute == -1 || now.Minute == x.Value.SMinute) &&
-                            (x.Value.SHour == -1 || now.Hour == x.Value.SHour) &&
-                            (x.Value.SDay == -1 || now.Day == x.Value.SDay) &&
-                            (x.Value.SMonth == -1 || now.Month == x.Value.SMonth))
-                        {
-                            QLog.SendLog_Debug("Run", x.Key);
-                            ThreadPool.QueueUserWorkItem((oo) =>
-                            {
-                                try
-                                {
-                                    x.Value.action();
-                                }
-                                catch (Exception ex)
-                                {
-                                    ex.ToString().SendLog_Exception();
-                                }
-                            }, o);
-                        }
+                                QLog.SendLog_Debug("Run", x.Key);
 
-                    }
-                    else if (x.Value.RunMode == 3)
-                    {
-                        var now = DateTime.Now;
-                        if ((x.Value.SSecond == -1 || now.Second == x.Value.SSecond) &&
-                            (x.Value.SMinute == -1 || now.Minute == x.Value.SMinute) &&
-                            (x.Value.SHour == -1 || now.Hour == x.Value.SHour) &&
-                            (x.Value.SWeek == -1 || (int)now.DayOfWeek == x.Value.SWeek))
-                        {
-                            QLog.SendLog_Debug("Run", x.Key);
-                            ThreadPool.QueueUserWorkItem((oo) =>
-                            {
                                 try
                                 {
                                     x.Value.action();
@@ -311,16 +248,80 @@ namespace Q.Lib
                                 {
                                     ex.ToString().SendLog_Exception();
                                 }
-                            }, o);
+
+                            }
+                        }
+                        else if (x.Value.RunMode == 0)
+                        {
+                            if (t == x.Value.Second)
+                            {
+                                QLog.SendLog_Debug("Run", x.Key);
+
+                                try
+                                {
+                                    x.Value.action();
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex.ToString().SendLog_Exception();
+                                }
+
+                                actions.TryRemove(x.Key, out QCrontabJob job);
+                            }
+                        }
+                        else if (x.Value.RunMode == 2)
+                        {
+                            var now = DateTime.Now;
+                            if ((x.Value.SSecond == -1 || now.Second == x.Value.SSecond) &&
+                                (x.Value.SMinute == -1 || now.Minute == x.Value.SMinute) &&
+                                (x.Value.SHour == -1 || now.Hour == x.Value.SHour) &&
+                                (x.Value.SDay == -1 || now.Day == x.Value.SDay) &&
+                                (x.Value.SMonth == -1 || now.Month == x.Value.SMonth))
+                            {
+                                QLog.SendLog_Debug("Run", x.Key);
+
+                                try
+                                {
+                                    x.Value.action();
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex.ToString().SendLog_Exception();
+                                }
+
+                            }
+
+                        }
+                        else if (x.Value.RunMode == 3)
+                        {
+                            var now = DateTime.Now;
+                            if ((x.Value.SSecond == -1 || now.Second == x.Value.SSecond) &&
+                                (x.Value.SMinute == -1 || now.Minute == x.Value.SMinute) &&
+                                (x.Value.SHour == -1 || now.Hour == x.Value.SHour) &&
+                                (x.Value.SWeek == -1 || (int)now.DayOfWeek == x.Value.SWeek))
+                            {
+                                QLog.SendLog_Debug("Run", x.Key);
+
+                                try
+                                {
+                                    x.Value.action();
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex.ToString().SendLog_Exception();
+                                }
+
+                            }
                         }
                     }
-                }
 
-                catch (Exception ex)
-                {
-                    QLog.SendLog_Exception(ex.ToString());
-                }
+                    catch (Exception ex)
+                    {
+                        QLog.SendLog_Exception(ex.ToString());
+                    }
+                });
             });
+
 
         }
     }
