@@ -113,7 +113,7 @@ namespace Q.Lib
             }
             return t_result;
         }
-        public static string Get(string url)
+        public static string Get(string url, Encoding encoding = null)
         {
             string result = string.Empty;
             using (WebClient wc = new WebClient())
@@ -123,7 +123,15 @@ namespace Q.Lib
                     wc.Headers["Accept-Language"] = "zh-CN,zh;q=0.8,en;q=0.6,ja;q=0.4,zh-TW;q=0.2";
                     wc.Headers["Content-Type"] = "application/json";
                     wc.Headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.134 Safari/537.36";
-                    result = Encoding.UTF8.GetString(wc.DownloadData(url));
+                    if (encoding == null)
+                    {
+                        result = Encoding.UTF8.GetString(wc.DownloadData(url));
+                    }
+                    else
+                    {
+                        result = encoding.GetString(wc.DownloadData(url));
+                    }
+                    
                 }
                 catch (Exception ex)
                 {
