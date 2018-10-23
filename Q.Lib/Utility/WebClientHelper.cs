@@ -113,7 +113,7 @@ namespace Q.Lib
             }
             return t_result;
         }
-        public static string Get(string url,Encoding encoding)
+        public static string Get(string url, Encoding encoding = null)
         {
             string result = string.Empty;
             using (WebClient wc = new WebClient())
@@ -131,7 +131,7 @@ namespace Q.Lib
                     {
                         result = encoding.GetString(wc.DownloadData(url));
                     }
-                   
+                    
                 }
                 catch (Exception ex)
                 {
