@@ -42,7 +42,7 @@ namespace Q.Lib
             return result;
         }
 
-       
+
 
         public static T Post<T>(string url, string parameter)
         {
@@ -60,7 +60,7 @@ namespace Q.Lib
                     if (parameter == null)
                     {
                         result = Encoding.UTF8.GetString(wc.UploadData(url, "POST", new byte[] { }));
-                       
+
                     }
                     else
                     {
@@ -131,7 +131,7 @@ namespace Q.Lib
                     {
                         result = encoding.GetString(wc.DownloadData(url));
                     }
-                    
+
                 }
                 catch (Exception ex)
                 {
@@ -142,30 +142,20 @@ namespace Q.Lib
             return result;
         }
 
-        public static T Get<T>(string url)
+        public static T Get<T>(string url, Encoding encoding = null)
         {
-            string result = string.Empty;
-            T t_result = default(T);
-            using (WebClient wc = new WebClient())
+            try
             {
-                try
-                {
-                    wc.Headers["Accept-Language"] = "zh-CN,zh;q=0.8,en;q=0.6,ja;q=0.4,zh-TW;q=0.2";
-                    wc.Headers["Content-Type"] = "application/json";
-                    wc.Headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.134 Safari/537.36";
-                    result = Encoding.UTF8.GetString(wc.DownloadData(url));
-                    t_result = JsonConvert.DeserializeObject<T>(result);
-                }
-                catch (Exception ex)
-                {
-                    t_result = default(T);
-                    ex.Message.SendLog_Exception();
-                    $"【error】{url}".SendLog_Debug();
-                    result.SendLog_Debug();
-                }
-             
+                return JsonConvert.DeserializeObject<T>(Get(url, encoding));
             }
-            return t_result;
+            catch (Exception ex)
+            {
+                ex.Message.SendLog_Exception();
+                $"【error】{url}".SendLog_Debug();
+                return default(T);
+            }
+
+
         }
     }
 }
