@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Q.Lib.Socket
 {
-   public class BaseSocket
+    public class BaseSocket
     {
         public static int HeadLength = 8;
         public static byte[] Read(Stream stream, byte[] end)
@@ -104,20 +104,19 @@ namespace Q.Lib.Socket
 
         public static byte[] Serialize(object obj)
         {
-            using (MemoryStream ms = new MemoryStream())
-            {
-                DataContractJsonSerializer js = new DataContractJsonSerializer(typeof(object));
-                js.WriteObject(ms, obj);
-                return ms.ToArray();
-            }
+            var str = Newtonsoft.Json.JsonConvert.SerializeObject(obj);
+            //Console.WriteLine("------------------Serialize-------------------");
+            //Console.WriteLine(str);
+            //Console.WriteLine("----------------------------------------------");
+            return Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(obj));
         }
         public static object Deserialize(byte[] stream)
         {
-            using (MemoryStream ms = new MemoryStream(stream))
-            {
-                DataContractJsonSerializer js = new DataContractJsonSerializer(typeof(object));
-                return js.ReadObject(ms);
-            }
+            var str = Encoding.UTF8.GetString(stream);
+            //Console.WriteLine("------------------Deserialize-------------------");
+            //Console.WriteLine(str);
+            //Console.WriteLine("------------------------------------------------");
+            return Newtonsoft.Json.JsonConvert.DeserializeObject(Encoding.UTF8.GetString(stream));
         }
 
         public static int findBytes(byte[] source, byte[] find, int startIndex)
@@ -130,7 +129,8 @@ namespace Q.Lib.Socket
             int idx = -1, idx2 = startIndex - 1;
             do
             {
-                idx2 = idx = Array.FindIndex<byte>(source, Math.Min(idx2 + 1, source.Length), delegate (byte b) {
+                idx2 = idx = Array.FindIndex<byte>(source, Math.Min(idx2 + 1, source.Length), delegate (byte b)
+                {
                     return b == find[0];
                 });
                 if (idx2 != -1)
@@ -189,7 +189,7 @@ namespace Q.Lib.Socket
         private string _action;
         private string _permission;
         private DateTime _remoteTime;
-        private object _arg;
+        private dynamic _arg;
         private Exception _exception;
 
         public SocketMessager(string action)
@@ -200,7 +200,7 @@ namespace Q.Lib.Socket
             : this(action, null, arg)
         {
         }
-        public SocketMessager(string action, string permission, object arg)
+        public SocketMessager(string action, string permission, dynamic arg)
         {
             this._id = Interlocked.Increment(ref _identity);
             this._action = action == null ? string.Empty : action;
@@ -221,56 +221,88 @@ namespace Q.Lib.Socket
 
         public string GetCanParseString()
         {
+           
+
             if (string.Compare(this._action, SocketMessager.SYS_TEST_LINK.Action) == 0)
             {
                 return this.Action;
             }
-            else if (
-              string.Compare(this._action, SocketMessager.SYS_HELLO_WELCOME.Action) == 0 ||
-              string.Compare(this._action, SocketMessager.SYS_ACCESS_DENIED.Action) == 0)
+
+            var p = new MsgItem
             {
-                return
-                    this._id + "\t" +
-                    this.Action + "\r\n";
-            }
-            else
-            {
-                return
-                    this._id + "\t" +
-                    this._action.Replace("\\", "\\\\").Replace("\t", "\\t").Replace("\r\n", "\\n") + "\t" +
-                    this._permission.Replace("\\", "\\\\").Replace("\t", "\\t").Replace("\r\n", "\\n") + "\t" +
-                    this._remoteTime.ToString("yyyy-MM-dd HH:mm:ss") + "\r\n";
-            }
+                ID = this._id,
+                Action = this._action,
+                Permission = this._permission,
+                RemoteTime = this._remoteTime,
+                Args = this._arg
+            };
+
+            return Q.Lib.Extension.Json.ToJsonStr(p);
+
+            //else if (
+            //  string.Compare(this._action, SocketMessager.SYS_HELLO_WELCOME.Action) == 0 ||
+            //  string.Compare(this._action, SocketMessager.SYS_ACCESS_DENIED.Action) == 0)
+            //{
+            //    return
+            //        this._id + "\t" +
+            //        this.Action + "\r\n";
+            //}
+            //else
+            //{
+            //    return
+            //        this._id + "\t" +
+            //        this._action.Replace("\\", "\\\\").Replace("\t", "\\t").Replace("\r\n", "\\n") + "\t" +
+            //        this._permission.Replace("\\", "\\\\").Replace("\t", "\\t").Replace("\r\n", "\\n") + "\t" +
+            //        this._remoteTime.ToString("yyyy-MM-dd HH:mm:ss") + "\r\n";
+
+            //}
         }
 
         public static SocketMessager Parse(byte[] data)
         {
             if (data == null) return new SocketMessager("NULL");
             if (data.Length == 1 && data[0] == 0) return SocketMessager.SYS_TEST_LINK;
-            int idx = BaseSocket.findBytes(data, new byte[] { 13, 10 }, 0);
-            string text = Encoding.UTF8.GetString(data, 0, idx);
-            string[] loc1 = text.Split(new string[] { "\t" }, 4, StringSplitOptions.None);
-            string loc2 = loc1[0];
-            string loc3 = loc1.Length > 1 ? loc1[1].Replace("\\\\", "\\").Replace("\\t", "\t").Replace("\\n", "\r\n") : null;
-            string loc4 = loc1.Length > 2 ? loc1[2].Replace("\\\\", "\\").Replace("\\t", "\t").Replace("\\n", "\r\n") : null;
-            string loc5 = loc1.Length > 3 ? loc1[3] : null;
-            SocketMessager messager;
-            using (MemoryStream ms = new MemoryStream())
-            {
-                ms.Write(data, idx + 2, data.Length - idx - 2);
-                using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
-                {
-                    using (MemoryStream msOut = new MemoryStream())
-                    {
-                        ds.CopyTo(msOut);
-                        messager = new SocketMessager(loc3, loc4, ms.Length > 0 ? BaseSocket.Deserialize(ms.ToArray()) : null);
-                    }
-                }
-            }
-            if (int.TryParse(loc2, out idx)) messager._id = idx;
-            if (!string.IsNullOrEmpty(loc5)) DateTime.TryParse(loc5, out messager._remoteTime);
-            if (messager._arg is Exception) messager._exception = messager._arg as Exception;
+
+           // int idx = BaseSocket.findBytes(data, new byte[] { 13, 10 }, 0);
+            //string text = Encoding.UTF8.GetString(data, 0, idx);
+            string text = Encoding.UTF8.GetString(data);
+            var msgItem = Q.Lib.Extension.Json.ToObj<MsgItem>(text);
+
+            SocketMessager messager = new SocketMessager(msgItem.Action, msgItem.Permission, msgItem.Args);
+            messager._id = msgItem.ID;
+            messager._remoteTime = msgItem.RemoteTime;
+
+
+            //Q.Lib.QLog.SendLog_Debug(text, "Message_Parse");
+            //string[] loc1 = text.Split(new string[] { "\t" }, 4, StringSplitOptions.None);
+            //string loc2 = loc1[0];
+            //string loc3 = loc1.Length > 1 ? loc1[1].Replace("\\\\", "\\").Replace("\\t", "\t").Replace("\\n", "\r\n") : null;
+            //string loc4 = loc1.Length > 2 ? loc1[2].Replace("\\\\", "\\").Replace("\\t", "\t").Replace("\\n", "\r\n") : null;
+            //string loc5 = loc1.Length > 3 ? loc1[3] : null;
+            //SocketMessager messager;
+            //using (MemoryStream ms = new MemoryStream())
+            //{
+            //    ms.Write(data, idx + 2, data.Length - idx - 2);
+            //    using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
+            //    {
+            //        using (MemoryStream msOut = new MemoryStream())
+            //        {
+            //            ds.CopyTo(msOut);
+            //            messager = new SocketMessager(loc3, loc4, ms.Length > 0 ? BaseSocket.Deserialize(ms.ToArray()) : null);
+            //        }
+            //    }
+            //}
+            //if (int.TryParse(loc2, out idx)) messager._id = idx;
+            //if (!string.IsNullOrEmpty(loc5)) DateTime.TryParse(loc5, out messager._remoteTime);
+            //if (messager._arg is Exception) messager._exception = messager._arg as Exception;
             return messager;
+        }
+
+        public SocketMessager GetServerBackMessager(dynamic args)
+        {
+            var newMsg = new SocketMessager(this.Action+"_CallBack", args);
+            newMsg.Id = this.Id;
+            return newMsg;
         }
 
         /// <summary>
@@ -293,7 +325,7 @@ namespace Q.Lib.Socket
         {
             get { return _remoteTime; }
         }
-        public object Arg
+        public dynamic Arg
         {
             get { return _arg; }
         }
@@ -301,5 +333,18 @@ namespace Q.Lib.Socket
         {
             get { return _exception; }
         }
+    }
+
+    internal class MsgItem
+    {
+        public int ID { set; get; }
+        public string Action { set; get; }
+
+        public string Permission { set; get; }
+
+        public DateTime RemoteTime { set; get; }
+
+        public dynamic Args { set; get; }
+
     }
 }

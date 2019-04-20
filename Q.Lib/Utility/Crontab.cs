@@ -12,7 +12,7 @@ namespace Q.Lib
 
         static ConcurrentDictionary<string, QCrontabJob> actions = new ConcurrentDictionary<string, QCrontabJob>();
 
-        public static QCrontabJob RunWithSecond(int second, Action action, string name = "")
+        public static void RunWithSecond(int second, Action action, string name = "")
         {
             string id = QTools.GuidStr();
             QCrontabJob qcj = new QCrontabJob();
@@ -24,15 +24,14 @@ namespace Q.Lib
             qcj.RemainderSecond = (DateTime.Now.Ticks / 10000000) % second;
             actions.TryAdd(id, qcj);
             QLog.SendLog($"添加定时任务 {name}({id})： Loop  {second} Second");
-            return qcj;
         }
 
-        public static QCrontabJob RunOnceWithTime(DateTime dateTime, Action action, string name = "")
+        public static void RunOnceWithTime(DateTime dateTime, Action action, string name = "")
         {
             if (dateTime < DateTime.Now)
             {
+                QLog.SendLog($"定时任务时间：{dateTime} 已过期，立即执行");
                 action();
-                return null;
             }
             else
             {
@@ -45,9 +44,25 @@ namespace Q.Lib
                 qcj.Second = (dateTime.Ticks / 10000000);
                 QLog.SendLog($"添加定时任务 {name}({id})： OnceTime {dateTime}");
                 actions.TryAdd(id, qcj);
-                return qcj;
             }
         }
+
+        public static void RunWithDelay(int second, Action action, string name = "")
+        {
+
+            var runTime = DateTime.Now.AddSeconds(second);
+            string id = QTools.GuidStr();
+            QCrontabJob qcj = new QCrontabJob();
+            qcj.ID = id;
+            qcj.Name = name;
+            qcj.action = action;
+            qcj.RunMode = 0;
+            qcj.Second = (runTime.Ticks / 10000000);
+            QLog.SendLog($"添加延时任务 {name}({id})：{second}s后（{runTime})运行");
+            actions.TryAdd(id, qcj);
+
+        }
+
         #region RunRepeatWithTimePoint
         /// <summary>
         /// 
@@ -55,12 +70,11 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">执行方法</param>
         /// <returns></returns>
-        public static QCrontabJob RunRepeatWithTimePoint(int second, Action action, string name = "")
+        public static void RunRepeatWithTimePoint(int second, Action action, string name = "")
         {
             if (second < 0 || second > 59)
             {
-                 "Error:时间点无效".SendLog_Exception();
-                return null;
+                "Error:时间点无效".SendLog_Exception();
             }
             else
             {
@@ -73,7 +87,6 @@ namespace Q.Lib
                 qcj.SSecond = second;
                 actions.TryAdd(id, qcj);
                 QLog.SendLog($"添加定时任务 {name}({id})： EverySecond {second}");
-                return qcj;
             }
         }
         /// <summary>
@@ -83,12 +96,11 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">执行方法</param>
         /// <returns></returns>
-        public static QCrontabJob RunRepeatWithTimePoint(int min, int second, Action action, string name = "")
+        public static void RunRepeatWithTimePoint(int min, int second, Action action, string name = "")
         {
             if (second < 0 || second > 59 || min < 0 || min > 59)
             {
-                 "Error:时间点无效".SendLog_Exception();
-                return null;
+                "Error:时间点无效".SendLog_Exception();
             }
             else
             {
@@ -102,7 +114,6 @@ namespace Q.Lib
                 qcj.SMinute = min;
                 actions.TryAdd(id, qcj);
                 QLog.SendLog($"添加定时任务 {name}({id})：{min}:{second} EveryHours");
-                return qcj;
             }
         }
         /// <summary>
@@ -113,12 +124,11 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">执行方法</param>
         /// <returns></returns>
-        public static QCrontabJob RunRepeatWithTimePoint(int hour, int min, int second, Action action, string name = "")
+        public static void RunRepeatWithTimePoint(int hour, int min, int second, Action action, string name = "")
         {
             if (second < 0 || second > 59 || min < 0 || min > 59 || hour < 0 || hour > 23)
             {
-                 "Error:时间点无效".SendLog_Exception();
-                return null;
+                "Error:时间点无效".SendLog_Exception();
             }
             else
             {
@@ -133,7 +143,6 @@ namespace Q.Lib
                 qcj.SHour = hour;
                 actions.TryAdd(id, qcj);
                 QLog.SendLog($"添加定时任务 {name}({id})：{hour}:{min}:{second} EveryDays");
-                return qcj;
             }
         }
         /// <summary>
@@ -145,12 +154,11 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">执行方法</param>
         /// <returns></returns>
-        public static QCrontabJob RunRepeatWithTimePoint(int day, int hour, int min, int second, Action action, string name = "")
+        public static void RunRepeatWithTimePoint(int day, int hour, int min, int second, Action action, string name = "")
         {
             if (second < 0 || second > 59 || min < 0 || min > 59 || hour < 0 || hour > 23 || day < 1 || day > 31)
             {
                 "Error:时间点无效".SendLog_Exception();
-                return null;
             }
             else
             {
@@ -166,7 +174,6 @@ namespace Q.Lib
                 qcj.SDay = day;
                 actions.TryAdd(id, qcj);
                 QLog.SendLog($"添加定时任务 {name}({id})：{hour} {hour}:{min}:{second} EveryMonths");
-                return qcj;
             }
         }
         /// <summary>
@@ -178,12 +185,11 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">方法</param>
         /// <returns></returns>
-        public static QCrontabJob RunRepeatWithWeek(int week, int hour, int min, int second, Action action, string name = "")
+        public static void RunRepeatWithWeek(int week, int hour, int min, int second, Action action, string name = "")
         {
             if (second < 0 || second > 59 || min < 0 || min > 59 || hour < 0 || hour > 23 || week < 0 || week > 6)
             {
                 "Error:时间点无效".SendLog_Exception();
-                return null;
             }
             else
             {
@@ -199,7 +205,6 @@ namespace Q.Lib
                 qcj.SWeek = week;
                 QLog.SendLog($"添加定时任务 {name}({id})：{week} {hour}:{min}:{second} EveryWeeks");
                 actions.TryAdd(id, qcj);
-                return qcj;
             }
         }
         /// <summary>
@@ -212,12 +217,11 @@ namespace Q.Lib
         /// <param name="second">秒</param>
         /// <param name="action">执行方法</param>
         /// <returns></returns>
-        public static QCrontabJob RunRepeatWithTimePoint(int month, int day, int hour, int min, int second, Action action, string name = "")
+        public static void RunRepeatWithTimePoint(int month, int day, int hour, int min, int second, Action action, string name = "")
         {
             if (second < 0 || second > 59 || min < 0 || min > 59 || hour < 0 || hour > 23 || day < 1 || day > 31 || month < 1 || month > 12)
             {
                 "Error:时间点无效".SendLog_Exception();
-                return null;
             }
             else
             {
@@ -234,7 +238,6 @@ namespace Q.Lib
                 qcj.SMonth = month;
                 actions.TryAdd(id, qcj);
                 QLog.SendLog($"添加定时任务 {name}({id})：{month}-{day} {hour}:{min}:{second} EveryYears");
-                return qcj;
             }
         }
         #endregion
@@ -347,7 +350,7 @@ namespace Q.Lib
 
         }
     }
-    public class QCrontabJob
+    class QCrontabJob
     {
         public string ID;
         public string Name;
