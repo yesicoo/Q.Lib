@@ -137,7 +137,8 @@ namespace Q.Lib.Socket
 
         internal void AccessDenied(AcceptSocket client)
         {
-            client.Write(SocketMessager.SYS_ACCESS_DENIED, delegate (object sender2, ReceiveEventArgs e2) {
+            client.Write(SocketMessager.SYS_ACCESS_DENIED, delegate (object sender2, ReceiveEventArgs e2)
+            {
             }, TimeSpan.FromSeconds(1));
             client.Close();
         }
@@ -162,7 +163,8 @@ namespace Q.Lib.Socket
                 AcceptSocket client = null;
                 if (this._clients.TryGetValue(key, out client))
                 {
-                    this._writeWQ.Enqueue(delegate () {
+                    this._writeWQ.Enqueue(delegate ()
+                    {
                         client.Write(messager);
                     });
                 }
@@ -184,13 +186,13 @@ namespace Q.Lib.Socket
         protected virtual void OnAccepted(AcceptedEventArgs e)
         {
             SocketMessager helloMessager = new SocketMessager(SocketMessager.SYS_HELLO_WELCOME.Action);
-            e.AcceptSocket.Write(helloMessager, delegate (object sender2, ReceiveEventArgs e2) {
-                if (e2.Messager.Id == helloMessager.Id &&
-                    string.Compare(e2.Messager.Action, helloMessager.Action) == 0)
+            e.AcceptSocket.Write(helloMessager, (sender2, e2) =>
+            {
+                if (e2.Messager.Id == helloMessager.Id && string.Compare(e2.Messager.Action, helloMessager.Action) == 0)
                 {
                     e.AcceptSocket._accepted = true;
                 }
-            }, TimeSpan.FromSeconds(2));
+            }, TimeSpan.FromSeconds(5));
             if (e.AcceptSocket._accepted)
             {
                 if (this.Accepted != null)
@@ -322,6 +324,7 @@ namespace Q.Lib.Socket
             private void OnDataAvailable(DataReadInfo dr)
             {
                 SocketMessager messager = SocketMessager.Parse(dr.ResponseStream.ToArray());
+
                 if (string.Compare(messager.Action, SocketMessager.SYS_QUIT.Action) == 0)
                 {
                     dr.AcceptSocket.Close();
@@ -333,7 +336,8 @@ namespace Q.Lib.Socket
 
                     if (this._receiveHandlers.TryGetValue(messager.Id, out receive))
                     {
-                        this._server._receiveSyncWQ.Enqueue(delegate () {
+                        this._server._receiveSyncWQ.Enqueue(delegate ()
+                        {
                             try
                             {
                                 receive.ReceiveHandler(this, e);
@@ -350,7 +354,8 @@ namespace Q.Lib.Socket
                     }
                     else
                     {
-                        this._server._receiveWQ.Enqueue(delegate () {
+                        this._server._receiveWQ.Enqueue(delegate ()
+                        {
                             this.OnReceive(e);
                         });
                     }
@@ -381,7 +386,14 @@ namespace Q.Lib.Socket
 
                 public void BeginRead()
                 {
-                    this.AcceptSocket._beginRead = this.NetworkStream.BeginRead(this.Buffer, 0, this.Over < this.Buffer.Length ? this.Over : this.Buffer.Length, HandleDataRead, this);
+                    try
+                    {
+                        this.AcceptSocket._beginRead = this.NetworkStream.BeginRead(this.Buffer, 0, this.Over < this.Buffer.Length ? this.Over : this.Buffer.Length, HandleDataRead, this);
+                    }
+                    catch (Exception ex)
+                    {
+                        Q.Lib.QLog.SendLog_Exception(ex.ToString());
+                    }
                 }
             }
             enum DataReadInfoType { Head, Body }
@@ -395,6 +407,12 @@ namespace Q.Lib.Socket
                     try
                     {
                         overs = dr.NetworkStream.EndRead(ar);
+                    }
+                    catch (IOException ex)
+                    {
+                        dr.AcceptSocket.OnError(ex);
+                        dr.AcceptSocket.Close();
+                        return;
                     }
                     catch (Exception ex)
                     {
@@ -439,7 +457,7 @@ namespace Q.Lib.Socket
                         {
                             this._tcpClient.Close();
                         }
-                        catch{ }
+                        catch { }
                         this._tcpClient = null;
                     }
                     this.OnClosed();
@@ -504,6 +522,7 @@ namespace Q.Lib.Socket
                     {
                         lock (_write_lock)
                         {
+                            QLog.SendLog_Debug("WriteAsync" + messager.Action);
                             NetworkStream ns = this._tcpClient.GetStream();
                             base.WriteAsync(ns, messager);
                         }

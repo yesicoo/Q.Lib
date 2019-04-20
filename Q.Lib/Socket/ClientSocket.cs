@@ -27,12 +27,25 @@ namespace Q.Lib.Socket
         public event ClientSocketClosedEventHandler Closed;
         public event ClientSocketReceiveEventHandler Receive;
         public event ClientSocketErrorEventHandler Error;
+        private Action<ClientSocket> _connectSuccess = null;
+        private string _hostname;
+        private int _port;
 
         private WorkQueue _receiveWQ;
         private WorkQueue _receiveSyncWQ;
 
-        public void Connect(string hostname, int port)
+        /// <summary>
+        /// 重连
+        /// </summary>
+        public void ReConnect()
         {
+            Connect(_hostname, _port);
+        }
+        public void Connect(string hostname, int port, Action<ClientSocket> connectSuccess = null)
+        {
+            _connectSuccess = connectSuccess ?? _connectSuccess;
+            _hostname = hostname;
+            _port = port;
             if (this._isDisposed == false && this._running == false)
             {
                 this._running = true;
@@ -42,19 +55,29 @@ namespace Q.Lib.Socket
                     this._tcpClient.Connect(hostname, port);
                     this._receiveWQ = new WorkQueue();
                     this._receiveSyncWQ = new WorkQueue();
+                   
                 }
                 catch (Exception ex)
                 {
                     this._running = false;
                     this.OnError(ex);
                     this.OnClosed();
+
+                    try
+                    {
+                        this._tcpClient.Close();
+                        QCrontab.RunWithDelay(5, () => { this.ReConnect(); }, "重连");
+                    }
+                    catch { }
+
                     return;
                 }
                 this._receives = 0;
                 this._errors = 0;
                 this._lastActive = DateTime.Now;
                 ManualResetEvent waitWelcome = new ManualResetEvent(false);
-                this._thread = new Thread(delegate () {
+                this._thread = new Thread(delegate ()
+                {
                     while (this._running)
                     {
                         try
@@ -67,12 +90,13 @@ namespace Q.Lib.Socket
                                 if (string.Compare(messager.Action, SocketMessager.SYS_TEST_LINK.Action) == 0)
                                 {
                                 }
-                                else if (this._receives == 0 &&
+                                else if (
                                   string.Compare(messager.Action, SocketMessager.SYS_HELLO_WELCOME.Action) == 0)
                                 {
                                     this._receives++;
                                     this.Write(messager);
                                     waitWelcome.Set();
+                                    this._connectSuccess?.Invoke(this);
                                 }
                                 else if (string.Compare(messager.Action, SocketMessager.SYS_ACCESS_DENIED.Action) == 0)
                                 {
@@ -80,12 +104,13 @@ namespace Q.Lib.Socket
                                 }
                                 else
                                 {
-                                    ClientSocketReceiveEventArgs e = new ClientSocketReceiveEventArgs(this._receives++, messager);
+                                    ClientSocketReceiveEventArgs e = new ClientSocketReceiveEventArgs(this._receives++, messager, this);
                                     SyncReceive receive = null;
 
                                     if (this._receiveHandlers.TryGetValue(messager.Id, out receive))
                                     {
-                                        this._receiveSyncWQ.Enqueue(delegate () {
+                                        this._receiveSyncWQ.Enqueue(delegate ()
+                                        {
                                             try
                                             {
                                                 receive.ReceiveHandler(this, e);
@@ -102,7 +127,8 @@ namespace Q.Lib.Socket
                                     }
                                     else if (this.Receive != null)
                                     {
-                                        this._receiveWQ.Enqueue(delegate () {
+                                        this._receiveWQ.Enqueue(delegate ()
+                                        {
                                             this.OnReceive(e);
                                         });
                                     }
@@ -131,9 +157,10 @@ namespace Q.Lib.Socket
                     try
                     {
                         this._tcpClient.Close();
+                        QCrontab.RunWithDelay(5, () => { this.ReConnect(); }, "重连");
                     }
                     catch { }
-                   // this._tcpClient.Dispose();
+                    // this._tcpClient.Dispose();
                     this._tcpClient = null;
 
                     int[] keys = new int[this._receiveHandlers.Count];
@@ -259,7 +286,8 @@ namespace Q.Lib.Socket
         {
             if (this.Closed != null)
             {
-                new Thread(delegate () {
+                new Thread(delegate ()
+                {
                     try
                     {
                         this.Closed(this, e);
@@ -270,6 +298,7 @@ namespace Q.Lib.Socket
                     }
                 }).Start();
             }
+
         }
         protected void OnClosed()
         {
@@ -386,13 +415,19 @@ namespace Q.Lib.Socket
 
         private int _receives;
         private SocketMessager _messager;
+        private ClientSocket _client;
 
-        public ClientSocketReceiveEventArgs(int receives, SocketMessager messager)
+        public ClientSocketReceiveEventArgs(int receives, SocketMessager messager, ClientSocket client)
         {
             this._receives = receives;
             this._messager = messager;
+            this._client = client;
         }
 
+        public void SendMessage(SocketMessager msg)
+        {
+            _client.Write(msg);
+        }
         public int Receives
         {
             get { return _receives; }

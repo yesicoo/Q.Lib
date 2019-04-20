@@ -9,7 +9,7 @@ namespace Q.Lib.Extension
 {
     public static class Json
     {
-        public static string ToJsonStr(this object o)
+        public static string ToJsonStr(this object o,bool pretty = false)
         {
             if (o == default(object))
             {
@@ -17,7 +17,14 @@ namespace Q.Lib.Extension
             }
             else
             {
-                return JsonConvert.SerializeObject(o);
+                if (pretty)
+                {
+                    return JsonConvert.SerializeObject(o,Formatting.Indented);
+                }
+                else
+                {
+                    return JsonConvert.SerializeObject(o);
+                }
             }
         }
 

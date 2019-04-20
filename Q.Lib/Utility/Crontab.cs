@@ -47,20 +47,19 @@ namespace Q.Lib
             }
         }
 
-        public static void RunWithDelay(int second, Action action, string name = "")
+        public static void RunWithDelay(int second, Action action, string name = "",string taskID=null)
         {
 
             var runTime = DateTime.Now.AddSeconds(second);
             string id = QTools.GuidStr();
             QCrontabJob qcj = new QCrontabJob();
-            qcj.ID = id;
+            qcj.ID = taskID?? id;
             qcj.Name = name;
             qcj.action = action;
             qcj.RunMode = 0;
             qcj.Second = (runTime.Ticks / 10000000);
-            QLog.SendLog($"添加延时任务 {name}({id})：{second}s后（{runTime})运行");
-            actions.TryAdd(id, qcj);
-
+            QLog.SendLog($"添加延时任务 {name}({qcj.ID})：{second}s后（{runTime})运行");
+            actions.TryAdd(qcj.ID, qcj);
         }
 
         #region RunRepeatWithTimePoint
@@ -116,6 +115,19 @@ namespace Q.Lib
                 QLog.SendLog($"添加定时任务 {name}({id})：{min}:{second} EveryHours");
             }
         }
+
+        /// <summary>
+        /// 取消定时任务
+        /// </summary>
+        /// <param name="p"></param>
+        public static void CancleTask(string taskID)
+        {
+           if( actions.TryRemove(taskID,out QCrontabJob qcj))
+            {
+                QLog.SendLog($"定时任务 {qcj.Name}({qcj.ID}) 已取消");
+            }
+        }
+
         /// <summary>
         /// 
         /// </summary>

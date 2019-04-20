@@ -269,6 +269,7 @@ namespace Q.Lib.Socket
             var msgItem = Q.Lib.Extension.Json.ToObj<MsgItem>(text);
 
             SocketMessager messager = new SocketMessager(msgItem.Action, msgItem.Permission, msgItem.Args);
+            QLog.SendLog_Debug("----->"+messager.Action);
             messager._id = msgItem.ID;
             messager._remoteTime = msgItem.RemoteTime;
 
