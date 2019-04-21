@@ -47,7 +47,7 @@ namespace Q.Lib.Utility
 
 
                     bash.Start();
-                Action_Output?.Invoke($"{fileName} {arguments}");
+                Action_Output?.Invoke(cmdStr);
                 if (redirect)
                 {
                     bash.OutputDataReceived += (s, e) => { Action_Output?.Invoke(e.Data); sb_output.AppendLine(e.Data); };
