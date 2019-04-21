@@ -39,11 +39,17 @@ namespace Q.Lib.Utility
                 }
             })
             {
-                bash.Start();
+                if (redirect)
+                {
+                    bash.StartInfo.StandardErrorEncoding = Encoding.UTF8;
+                    bash.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+                }
+
+
+                    bash.Start();
                 Action_Output?.Invoke($"{fileName} {arguments}");
                 if (redirect)
                 {
-                   
                     bash.OutputDataReceived += (s, e) => { Action_Output?.Invoke(e.Data); sb_output.AppendLine(e.Data); };
                     bash.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) { Action_Error?.Invoke(e.Data); sb_error.AppendLine(e.Data); } };
 
