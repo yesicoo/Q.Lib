@@ -18,5 +18,24 @@ namespace Q.Lib.Model
             this.Error = error;
             this.ExitCode = exitCode;
         }
+
+        public ShellResult InheritedOther(ShellResult sr)
+        {
+            this.OutPut = $"{sr.OutPut}{Environment.NewLine}{this.OutPut}";
+            this.Error = $"{sr.Error}{Environment.NewLine}{this.Error}";
+            return this;
+        }
+
+        public ShellResult AppendOutput(string text)
+        {
+            this.OutPut += (Environment.NewLine + text);
+            return this;
+        }
+
+        public ShellResult AppendErrMsg(string text)
+        {
+            this.Error += (Environment.NewLine + text);
+            return this;
+        }
     }
 }
