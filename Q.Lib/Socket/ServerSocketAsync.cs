@@ -37,6 +37,11 @@ namespace Q.Lib.Socket
             this._port = port;
         }
 
+        public bool IsRuning()
+        {
+            return _running;
+        }
+
         public void Start()
         {
             if (this._running == false)
@@ -289,6 +294,10 @@ namespace Q.Lib.Socket
             private DateTime _lastActive;
             internal bool _accepted;
             internal IAsyncResult _beginRead;
+            public EndPoint RemoteEndPoint
+            {
+                get { if (_running) { return _tcpClient.Client.RemoteEndPoint; } else { return null; } }
+            }
 
             public AcceptSocket(ServerSocketAsync server, TcpClient tcpClient, int id)
             {
