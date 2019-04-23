@@ -9,7 +9,7 @@ namespace Q.Lib
 {
     public static class JsonFileDB
     {
-        public static bool SaveObject(string fileName, object o)
+        public static bool SaveObject(string fileName, object o, string dir = null)
         {
             if (o == null)
             {
@@ -17,13 +17,13 @@ namespace Q.Lib
             }
             try
             {
-                string dirPath = AppDomain.CurrentDomain.BaseDirectory + "/JsonFiles/";
+                string dirPath = dir ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "JsonFiles");
                 if (!Directory.Exists(dirPath))
                 {
                     Directory.CreateDirectory(dirPath);
                 }
                 string jsonStr = Newtonsoft.Json.JsonConvert.SerializeObject(o);
-                using (StreamWriter sw = File.CreateText(dirPath + fileName + ".jf"))
+                using (StreamWriter sw = File.CreateText(Path.Combine(dirPath, fileName + (fileName.IndexOf('.') == -1 ? ".jf" : ""))))
                 {
                     sw.Write(jsonStr.ToString());
                 }
@@ -35,9 +35,9 @@ namespace Q.Lib
             }
             return true;
         }
-        public static T ReadObject<T>(string fileName)
+        public static T ReadObject<T>(string fileName, string dir = null)
         {
-            string dirPath = AppDomain.CurrentDomain.BaseDirectory + "/JsonFiles/";
+            string dirPath = dir ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "JsonFiles");
             if (!Directory.Exists(dirPath))
             {
                 Directory.CreateDirectory(dirPath);
@@ -47,13 +47,13 @@ namespace Q.Lib
             {
                 try
                 {
-                    if (!File.Exists(dirPath + fileName + ".jf"))
+                    if (!File.Exists(Path.Combine(dirPath, fileName + (fileName.IndexOf('.') == -1 ? ".jf" : ""))))
                     {
                         return default(T);
                     }
                     else
                     {
-                        string jsonStr = File.ReadAllText(dirPath + fileName + ".jf");
+                        string jsonStr = File.ReadAllText(Path.Combine(dirPath, fileName + (fileName.IndexOf('.') == -1 ? ".jf" : "")));
 
                         return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(jsonStr);
                     }
