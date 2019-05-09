@@ -10,9 +10,9 @@ namespace Q.Lib.Utility
 {
     public static class Shell
     {
-        public static Action<string> Action_Output = (s)=> { s.SendLog(); };
+        public static Action<string> Action_Output = (s) => { s.SendLog(); };
         public static Action<string> Action_Error = (s) => { s.SendLog_Exception(); };
-        public static ShellResult RunCommand(string cmdStr, string workDir = null, bool redirect = true)
+        public static ShellResult RunCommand(string cmdStr, string workDir = null, bool redirect = true,bool defaultEncoding = false)
         {
             string fileName = cmdStr.Split(' ')[0];
             string arguments = cmdStr.Substring(fileName.Length);
@@ -39,14 +39,16 @@ namespace Q.Lib.Utility
                 }
             })
             {
-                if (redirect)
+                if (redirect && !defaultEncoding)
                 {
-                    bash.StartInfo.StandardErrorEncoding = Encoding.UTF8;
-                    bash.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+                   
+                        bash.StartInfo.StandardErrorEncoding = Encoding.UTF8;
+                        bash.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+                    
                 }
 
 
-                    bash.Start();
+                bash.Start();
                 Action_Output?.Invoke(cmdStr);
                 if (redirect)
                 {
@@ -62,9 +64,9 @@ namespace Q.Lib.Utility
                 bash.Close();
 
                 if (redirect)
-                    return new ShellResult(sb_output.ToString(), sb_error.ToString(), ExitCode);
+                    return new ShellResult(cmdStr,sb_output.ToString(), sb_error.ToString(), ExitCode);
                 else
-                    return new ShellResult(null, null, ExitCode);
+                    return new ShellResult(cmdStr,null, null, ExitCode);
             }
         }
     }
