@@ -5,11 +5,12 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>XuQing</Authors>
     <Company>XuQing</Company>
-    <Description>操作工具类</Description>
+    <Description>操作工具类
+添加IDictionary的拓展方法</Description>
     <PackageReleaseNotes>一款常用工具合集，简单的socket服务客户端，日志记录，数据转换等</PackageReleaseNotes>
-    <AssemblyVersion>1.0.1.0</AssemblyVersion>
-    <FileVersion>1.0.1.0</FileVersion>
-    <Version>1.0.1</Version>
+    <AssemblyVersion>1.0.2.0</AssemblyVersion>
+    <FileVersion>1.0.2.0</FileVersion>
+    <Version>1.0.2</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
