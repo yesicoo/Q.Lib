@@ -384,9 +384,9 @@ namespace Q.Lib.Socket
         #endregion
     }
 
-    public delegate void ClientSocketClosedEventHandler(object sender, EventArgs e);
-    public delegate void ClientSocketErrorEventHandler(object sender, ClientSocketErrorEventArgs e);
-    public delegate void ClientSocketReceiveEventHandler(object sender, ClientSocketReceiveEventArgs e);
+    public delegate void ClientSocketClosedEventHandler(ClientSocket sender, EventArgs e);
+    public delegate void ClientSocketErrorEventHandler(ClientSocket sender, ClientSocketErrorEventArgs e);
+    public delegate void ClientSocketReceiveEventHandler(ClientSocket sender, ClientSocketReceiveEventArgs e);
 
     public class ClientSocketErrorEventArgs : EventArgs
     {
