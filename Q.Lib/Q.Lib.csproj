@@ -1,15 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>NET45;NET46;NET47;netstandard2.0;netcoreapp2.2</TargetFrameworks>
+    <TargetFrameworks>NET45;NET46;NET472;netstandard2.0;netcoreapp2.2</TargetFrameworks>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>XuQing</Authors>
     <Company>XuQing</Company>
-    <Description>操作工具类</Description>
+    <Description>修改socket消息Sender类型</Description>
     <PackageReleaseNotes>一款常用工具合集，简单的socket服务客户端，日志记录，数据转换等</PackageReleaseNotes>
-    <AssemblyVersion>1.0.1.0</AssemblyVersion>
-    <FileVersion>1.0.1.0</FileVersion>
-    <Version>1.0.1</Version>
+    <AssemblyVersion>1.0.2.0</AssemblyVersion>
+    <FileVersion>1.0.2.0</FileVersion>
+    <Version>1.0.2</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />

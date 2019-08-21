@@ -295,7 +295,7 @@ namespace Q.Lib.Socket
             //}
             //if (int.TryParse(loc2, out idx)) messager._id = idx;
             //if (!string.IsNullOrEmpty(loc5)) DateTime.TryParse(loc5, out messager._remoteTime);
-            //if (messager._arg is Exception) messager._exception = messager._arg as Exception;
+            if (messager._arg is Exception) messager._exception = messager._arg as Exception;
             return messager;
         }
 
