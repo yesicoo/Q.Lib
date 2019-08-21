@@ -531,7 +531,6 @@ namespace Q.Lib.Socket
                     {
                         lock (_write_lock)
                         {
-                            QLog.SendLog_Debug("WriteAsync" + messager.Action);
                             NetworkStream ns = this._tcpClient.GetStream();
                             base.WriteAsync(ns, messager);
                         }

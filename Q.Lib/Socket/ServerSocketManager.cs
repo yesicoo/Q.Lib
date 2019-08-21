@@ -76,7 +76,7 @@ namespace Q.Lib.Socket
             };
 
             //注册->注册命令
-            this.RegisterAction("S_Register", (r, e, d) =>
+            this.RegisterAction("S_Regist", (r, e, d) =>
             {
 
                 string clientName = d?.ClientName?.ToString();
@@ -94,7 +94,7 @@ namespace Q.Lib.Socket
                         var hisClients = _clientItems.FindAll(x => x.ClientName == clientName);
                         foreach (var client in hisClients)
                         {
-                            client.SendCommand("S_CloseMsg", new { ResCode = -1002, ResDesc = "有同名称终端连接，你已被挤下线" });
+                            client.SendCommand("S_Close", new { ResCode = -1002, ResDesc = "有同名称终端连接，你已被挤下线" });
                             _clientItems.Remove(client);
                             client.AcceptSocket.Close();
                         }

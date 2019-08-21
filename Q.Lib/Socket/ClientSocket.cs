@@ -122,7 +122,7 @@ namespace Q.Lib.Socket
                                 else if (string.Compare(messager.Action, "S_Close") == 0)
                                 {
                                     this._running = false;
-                                    this.Error(this, new ClientSocketErrorEventArgs(new Exception(messager.Arg?.Desc), 1));
+                                    this.Error(this, new ClientSocketErrorEventArgs(new Exception(messager.Arg?.ResDesc), 1));
                                     this._tcpClient.Close();
                                     this._tcpClient = null;
                                 }
