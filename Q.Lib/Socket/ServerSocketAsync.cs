@@ -142,7 +142,7 @@ namespace Q.Lib.Socket
 
         internal void AccessDenied(AcceptSocket client)
         {
-            client.Write(SocketMessager.SYS_ACCESS_DENIED, delegate (object sender2, ReceiveEventArgs e2)
+            client.Write(SocketMessager.SYS_ACCESS_DENIED, (s,e)=>
             {
             }, TimeSpan.FromSeconds(1));
             client.Close();
@@ -652,9 +652,9 @@ namespace Q.Lib.Socket
             #endregion
         }
 
-        public delegate void ClosedEventHandler(object sender, ClosedEventArgs e);
-        public delegate void AcceptedEventHandler(object sender, AcceptedEventArgs e);
-        public delegate void ErrorEventHandler(object sender, ErrorEventArgs e);
+        public delegate void ClosedEventHandler(ServerSocketAsync sender, ClosedEventArgs e);
+        public delegate void AcceptedEventHandler(ServerSocketAsync sender, AcceptedEventArgs e);
+        public delegate void ErrorEventHandler(ServerSocketAsync sender, ErrorEventArgs e);
         public delegate void ReceiveEventHandler(object sender, ReceiveEventArgs e);
 
         public class ClosedEventArgs : EventArgs

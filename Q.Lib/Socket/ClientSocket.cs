@@ -30,6 +30,7 @@ namespace Q.Lib.Socket
         private Action<ClientSocket> _connectSuccess = null;
         private string _hostname;
         private int _port;
+        private string _clientName;
 
         private WorkQueue _receiveWQ;
         private WorkQueue _receiveSyncWQ;
@@ -39,11 +40,16 @@ namespace Q.Lib.Socket
         /// </summary>
         public void ReConnect()
         {
-            Connect(_hostname, _port);
+            ConnectAndRegist(_hostname, _port, _clientName);
         }
         public void Connect(string hostname, int port, Action<ClientSocket> connectSuccess = null)
         {
+            ConnectAndRegist(hostname, port, null, connectSuccess);
+        }
+        public void ConnectAndRegist(string hostname, int port, string clientName, Action<ClientSocket> connectSuccess = null)
+        {
             _connectSuccess = connectSuccess ?? _connectSuccess;
+            _clientName = clientName;
             _hostname = hostname;
             _port = port;
             if (this._isDisposed == false && this._running == false)
@@ -55,7 +61,7 @@ namespace Q.Lib.Socket
                     this._tcpClient.Connect(hostname, port);
                     this._receiveWQ = new WorkQueue();
                     this._receiveSyncWQ = new WorkQueue();
-                   
+
                 }
                 catch (Exception ex)
                 {
@@ -96,11 +102,29 @@ namespace Q.Lib.Socket
                                     this._receives++;
                                     this.Write(messager);
                                     waitWelcome.Set();
-                                    this._connectSuccess?.Invoke(this);
+                                    if (string.IsNullOrEmpty(_clientName))
+                                    {
+                                        this._connectSuccess?.Invoke(this);
+                                    }
+                                    else
+                                    {
+                                        this.Write(new SocketMessager("S_Regist", new { ClientName = _clientName }), (s, e) =>
+                                        {
+                                            this._connectSuccess?.Invoke(this);
+                                        });
+                                    }
+
                                 }
                                 else if (string.Compare(messager.Action, SocketMessager.SYS_ACCESS_DENIED.Action) == 0)
                                 {
                                     throw new Exception(SocketMessager.SYS_ACCESS_DENIED.Action);
+                                }
+                                else if (string.Compare(messager.Action, "S_Close") == 0)
+                                {
+                                    this._running = false;
+                                    this.Error(this, new ClientSocketErrorEventArgs(new Exception(messager.Arg?.Desc), 1));
+                                    this._tcpClient.Close();
+                                    this._tcpClient = null;
                                 }
                                 else
                                 {
@@ -156,8 +180,11 @@ namespace Q.Lib.Socket
 
                     try
                     {
-                        this._tcpClient.Close();
-                        QCrontab.RunWithDelay(5, () => { this.ReConnect(); }, "重连");
+                        if (this._tcpClient != null)
+                        {
+                            this._tcpClient.Close();
+                            QCrontab.RunWithDelay(5, () => { this.ReConnect(); }, "重连");
+                        }
                     }
                     catch { }
                     // this._tcpClient.Dispose();
