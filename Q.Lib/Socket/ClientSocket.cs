@@ -1,6 +1,7 @@
 ﻿using Q.Lib.Extension;
 using Q.Lib.Utility;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
@@ -32,6 +33,7 @@ namespace Q.Lib.Socket
         private string _hostname;
         private int _port;
         private string _clientName;
+        private ConcurrentDictionary<string, Action<ClientSocketReceiveEventArgs, dynamic>> _actions = new ConcurrentDictionary<string, Action<ClientSocketReceiveEventArgs, dynamic>>();
 
         private WorkQueue _receiveWQ;
         private WorkQueue _receiveSyncWQ;
@@ -164,12 +166,33 @@ namespace Q.Lib.Socket
                                             }
                                         });
                                     }
-                                    else if (this.Receive != null)
+                                    else
                                     {
-                                        this._receiveWQ.Enqueue(delegate ()
+                                        if (_actions.ContainsKey(messager.Action))
                                         {
-                                            this.OnReceive(e);
-                                        });
+                                            _actions[messager.Action]?.Invoke(e, messager.Data);
+                                        }
+                                        else
+                                        {
+
+                                            if (this.Receive != null)
+                                            {
+
+                                                this._receiveWQ.Enqueue(delegate ()
+                                                {
+                                                    this.OnReceive(e);
+                                                });
+                                            }
+                                            else
+                                            {
+                                                QLog.SendLog($"指令 {messager.Action} 不存在");
+                                                Task.Run(() =>
+                                                {
+                                                    var msg = messager.GetServerBackMessager(new { ResCode = -1, ResDesc = "未知命令" });
+                                                    this.Write(msg);
+                                                });
+                                            }
+                                        }
                                     }
                                 }
                                 this._lastActive = DateTime.Now;
@@ -249,6 +272,26 @@ namespace Q.Lib.Socket
             }
         }
 
+        public bool RegisterAction(string actionKey, Action<ClientSocketReceiveEventArgs, dynamic> action)
+        {
+            if (string.IsNullOrEmpty(actionKey) || action == null)
+            {
+                QLog.SendLog($"命令[{actionKey}] 或这执行方法无效");
+                return false;
+            }
+
+            if (_actions.ContainsKey(actionKey))
+            {
+                QLog.SendLog($"命令[{actionKey}] 已存在，请勿重复添加");
+                return false;
+            }
+            else
+            {
+                return _actions.TryAdd(actionKey, action);
+
+            }
+        }
+
         public void Close()
         {
             if (this._running == true)
@@ -325,7 +368,7 @@ namespace Q.Lib.Socket
         }
 
 
-        public void SendCommand(string actionKey, object arg, Action< ClientSocketReceiveEventArgs, dynamic> action = null, int timeOut = 30)
+        public void SendCommand(string actionKey, object arg, Action<ClientSocketReceiveEventArgs, dynamic> action = null, int timeOut = 30)
         {
 
             if (this.Running)
