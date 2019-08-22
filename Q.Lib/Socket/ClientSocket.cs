@@ -1,4 +1,5 @@
-﻿using Q.Lib.Utility;
+﻿using Q.Lib.Extension;
+using Q.Lib.Utility;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -93,6 +94,8 @@ namespace Q.Lib.Socket
                             if (ns.DataAvailable)
                             {
                                 SocketMessager messager = base.Read(ns);
+
+
                                 if (string.Compare(messager.Action, SocketMessager.SYS_TEST_LINK.Action) == 0)
                                 {
                                 }
@@ -108,9 +111,13 @@ namespace Q.Lib.Socket
                                     }
                                     else
                                     {
-                                        this.Write(new SocketMessager("S_Regist", new { ClientName = _clientName }), (s, e) =>
+                                        Task.Run(() =>
                                         {
-                                            this._connectSuccess?.Invoke(this);
+
+                                            this.Write(new SocketMessager(SocketMessager.SYS_REGIST.Action, new { ClientName = _clientName }), (s, e) =>
+                                            {
+                                                this._connectSuccess?.Invoke(this);
+                                            });
                                         });
                                     }
 
@@ -119,10 +126,18 @@ namespace Q.Lib.Socket
                                 {
                                     throw new Exception(SocketMessager.SYS_ACCESS_DENIED.Action);
                                 }
-                                else if (string.Compare(messager.Action, "S_Close") == 0)
+                                else if (string.Compare(messager.Action, SocketMessager.SYS_TEST_ECHO.Action) == 0)
+                                {
+                                    Task.Run(() =>
+                                    {
+                                        var msg = messager.GetServerBackMessager(messager.Data);
+                                        this.Write(msg);
+                                    });
+                                }
+                                else if (string.Compare(messager.Action, SocketMessager.SYS_CLOSE.Action) == 0)
                                 {
                                     this._running = false;
-                                    this.Error(this, new ClientSocketErrorEventArgs(new Exception(messager.Arg?.ResDesc), 1));
+                                    this.Error(this, new ClientSocketErrorEventArgs(new Exception(messager.Data?.ResDesc), 1));
                                     this._tcpClient.Close();
                                     this._tcpClient = null;
                                 }
@@ -252,7 +267,7 @@ namespace Q.Lib.Socket
         }
         public void Write(SocketMessager messager, ClientSocketReceiveEventHandler receiveHandler)
         {
-            this.Write(messager, receiveHandler, TimeSpan.FromSeconds(20));
+            this.Write(messager, receiveHandler, TimeSpan.FromSeconds(10));
         }
         public void Write(SocketMessager messager, ClientSocketReceiveEventHandler receiveHandler, TimeSpan timeout)
         {
@@ -307,6 +322,50 @@ namespace Q.Lib.Socket
                     }
                 }
             }
+        }
+
+
+        public void SendCommand(string actionKey, object arg, Action< ClientSocketReceiveEventArgs, dynamic> action = null, int timeOut = 30)
+        {
+
+            if (this.Running)
+            {
+                Task.Run(() =>
+                {
+                    if (action == null)
+                    {
+                        this.Write(new SocketMessager(actionKey, arg));
+                    }
+                    else
+                    {
+                        this.Write(new SocketMessager(actionKey, arg), (s, a) =>
+                        {
+                            action?.Invoke(a, a.Messager.Data);
+                            Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, a.Messager.Data); });
+                        }, TimeSpan.FromSeconds(timeOut));
+                    }
+                });
+            }
+            else
+            {
+                QLog.SendLog($"客户端未连接");
+            }
+        }
+
+        public T SendData<T>(string actionKey, object arg, int timeOut = 30)
+        {
+            ManualResetEvent resetEvent = new ManualResetEvent(true);
+            T t = default(T);
+            resetEvent.Set();
+
+            this.Write(new SocketMessager(actionKey, arg), (s, e) =>
+            {
+                t = Json.ToObj<T>(Newtonsoft.Json.JsonConvert.SerializeObject(e.Messager.Data));
+                resetEvent.Reset();
+            });
+            resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
+            Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, t); });
+            return t;
         }
 
         protected virtual void OnClosed(EventArgs e)
