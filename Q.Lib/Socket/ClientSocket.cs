@@ -288,7 +288,6 @@ namespace Q.Lib.Socket
             else
             {
                 return _actions.TryAdd(actionKey, action);
-
             }
         }
 
@@ -551,6 +550,11 @@ namespace Q.Lib.Socket
             this._receives = receives;
             this._messager = messager;
             this._client = client;
+        }
+
+        public T GetData<T>()
+        {
+            return Json.Convert2T<T>(Messager.Data);
         }
 
         public void SendMessage(SocketMessager msg)

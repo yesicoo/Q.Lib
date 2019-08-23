@@ -1,4 +1,5 @@
-﻿using Q.Lib.Utility;
+﻿using Q.Lib.Extension;
+using Q.Lib.Utility;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -142,7 +143,7 @@ namespace Q.Lib.Socket
 
         internal void AccessDenied(AcceptSocket client)
         {
-            client.Write(SocketMessager.SYS_ACCESS_DENIED, (s,e)=>
+            client.Write(SocketMessager.SYS_ACCESS_DENIED, (s, e) =>
             {
             }, TimeSpan.FromSeconds(1));
             client.Close();
@@ -740,6 +741,11 @@ namespace Q.Lib.Socket
                 this._receives = receives;
                 this._messager = messager;
                 this._acceptSocket = acceptSocket;
+            }
+
+            public T GetData<T>()
+            {
+                return Json.Convert2T(this.Messager.Data);
             }
 
             public int Receives
