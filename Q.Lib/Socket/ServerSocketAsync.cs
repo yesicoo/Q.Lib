@@ -747,6 +747,16 @@ namespace Q.Lib.Socket
             {
                 return Json.Convert2T(this.Messager.Data);
             }
+            public void Return(object returnData)
+            {
+                SocketMessager msg = this.Messager.GetServerBackMessager(returnData);
+                _acceptSocket.Write(msg);
+            }
+            public void ReturnOK()
+            {
+                SocketMessager msg = this.Messager.GetServerBackMessager(new { ResCode = 0, ResDesc = "OK" });
+                _acceptSocket.Write(msg);
+            }
 
             public int Receives
             {

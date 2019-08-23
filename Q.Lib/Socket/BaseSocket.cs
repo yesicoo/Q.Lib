@@ -217,7 +217,7 @@ namespace Q.Lib.Socket
             return messager;
         }
 
-        public SocketMessager GetServerBackMessager(dynamic args)
+        public SocketMessager GetServerBackMessager(object args)
         {
             var newMsg = new SocketMessager(this.Action+"_CallBack", args);
             newMsg.Id = this.Id;

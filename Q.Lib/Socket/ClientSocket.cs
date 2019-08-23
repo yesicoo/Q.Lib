@@ -556,6 +556,16 @@ namespace Q.Lib.Socket
         {
             return Json.Convert2T<T>(Messager.Data);
         }
+        public void Return(object returnData)
+        {
+            SocketMessager msg = this.Messager.GetServerBackMessager(returnData);
+            _client.Write(msg);
+        }
+        public void ReturnOK()
+        {
+            SocketMessager msg = this.Messager.GetServerBackMessager(new { ResCode = 0,ResDesc="OK"});
+            _client.Write(msg);
+        }
 
         public void SendMessage(SocketMessager msg)
         {

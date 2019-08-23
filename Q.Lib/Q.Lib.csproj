@@ -6,8 +6,8 @@
     <Authors>XuQing</Authors>
     <Company>XuQing</Company>
     <PackageReleaseNotes>一款常用工具合集，简单的socket服务客户端，日志记录，数据转换等</PackageReleaseNotes>
-    <Version>1.0.4.4</Version>
-    <Description>添加消息数据转换成实体类方法</Description>
+    <Version>1.0.4.5</Version>
+    <Description>添加消息快速返回方法</Description>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
