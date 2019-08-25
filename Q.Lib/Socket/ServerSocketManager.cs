@@ -1,4 +1,5 @@
 ﻿using Q.Lib.Extension;
+using Q.Lib.Model;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -52,7 +53,7 @@ namespace Q.Lib.Socket
                     {
                         if (!_clientItems.Exists(x => x.ClientID == e.AcceptSocket.Id))
                         {
-                            e.AcceptSocket.Write(new SocketMessager("S_Close", new { ResCode = -1002, ResDesc = "超过10s未进行注册，你已被踢下线" }));
+                            e.AcceptSocket.Write(new SocketMessager("S_Close", new AckItem(-1002, "超过10s未进行注册，你已被踢下线")));
                             QLog.SendLog_Debug($"Socket:{e.AcceptSocket.Id}({e.AcceptSocket.RemoteEndPoint.ToString()}) 超过10s未进行注册，现已踢除");
                             e.AcceptSocket.Close();
                         }
@@ -110,13 +111,13 @@ namespace Q.Lib.Socket
                         var hisClients = _clientItems.FindAll(x => x.ClientName == clientName);
                         foreach (var client in hisClients)
                         {
-                            client.SendCommand("S_Close", new { ResCode = -1002, ResDesc = "有同名称终端连接，你已被挤下线" });
+                            client.SendCommand("S_Close", new { Status = "Error", Msg = "有同名称终端连接，你已被挤下线" });
                             _clientItems.Remove(client);
                             client.AcceptSocket.Close();
                         }
                         _clientItems.Add(newClient);
                     }
-                    var msg = e.Messager.GetServerBackMessager(new { ResCode = 0 });
+                    var msg = e.Messager.GetServerBackMessager(new AckItem());
                     e.AcceptSocket.Write(msg);
                     QLog.SendLog($"{clientName} 注册成功");
                     QCrontab.CancleTask("终端注册检查_" + e.AcceptSocket.Id);
@@ -198,7 +199,7 @@ namespace Q.Lib.Socket
         /// <param name="clientName"></param>
         /// <param name="actionKey"></param>
         /// <param name="arg"></param>
-        public void SendCommand(string clientName, string actionKey, object arg, Action<ReceiveEventArgs, dynamic> callBack = null, int timeOut = 30)
+        public void SendCommand(string clientName, string actionKey, object arg, Action<ReceiveEventArgs, AckItem> callBack = null, int timeOut = 30)
         {
             lock (_clientItems)
             {
@@ -207,19 +208,19 @@ namespace Q.Lib.Socket
                 {
                     Task.Run(() =>
                     {
-                        arg = arg ?? new object();
+                        var data = new AckItem(arg);
                         if (callBack == null)
                         {
-                            client.AcceptSocket.Write(new SocketMessager(actionKey, arg));
+                            client.AcceptSocket.Write(new SocketMessager(actionKey, data));
                         }
                         else
                         {
-                            client.AcceptSocket.Write(new SocketMessager(actionKey, arg), (s, e) =>
+                            client.AcceptSocket.Write(new SocketMessager(actionKey, data), (s, e) =>
                             {
                                 callBack?.Invoke(e, e.Messager.Data);
 
                                 Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, e.Messager.Data); });
-                            }, TimeSpan.FromSeconds(30));
+                            }, TimeSpan.FromSeconds(timeOut));
                         }
                     });
                 }
@@ -242,13 +243,14 @@ namespace Q.Lib.Socket
                     ManualResetEvent resetEvent = new ManualResetEvent(true);
 
                     resetEvent.Set();
-                    client.AcceptSocket.Write(new SocketMessager(actionKey, arg), (s, e) =>
+                    var data = new AckItem(arg);
+                    client.AcceptSocket.Write(new SocketMessager(actionKey, data), (s, e) =>
                     {
-                        t = Json.ToObj<T>(Newtonsoft.Json.JsonConvert.SerializeObject(e.Messager.Data));
+                        t = Json.ToObj<T>(Newtonsoft.Json.JsonConvert.SerializeObject(e.Messager.Data?.ResData));
                         resetEvent.Reset();
+                        Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, e.Messager.Data); });
                     });
                     resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
-                    Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, t); });
                 }
             }
             return t;

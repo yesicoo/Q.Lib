@@ -1,4 +1,5 @@
 ﻿using Q.Lib.Extension;
+using Q.Lib.Model;
 using Q.Lib.Utility;
 using System;
 using System.Collections.Concurrent;
@@ -116,7 +117,7 @@ namespace Q.Lib.Socket
                                         Task.Run(() =>
                                         {
 
-                                            this.Write(new SocketMessager(SocketMessager.SYS_REGIST.Action, new { ClientName = _clientName }), (s, e) =>
+                                            this.Write(new SocketMessager(SocketMessager.SYS_REGIST.Action, new AckItem(new { ClientName = _clientName })), (s, e) =>
                                             {
                                                 this._connectSuccess?.Invoke(this);
                                             });
@@ -188,7 +189,7 @@ namespace Q.Lib.Socket
                                                 QLog.SendLog($"指令 {messager.Action} 不存在");
                                                 Task.Run(() =>
                                                 {
-                                                    var msg = messager.GetServerBackMessager(new { ResCode = -1, ResDesc = "未知命令" });
+                                                    var msg = messager.GetServerBackMessager(new AckItem(-1,"未知命令"));
                                                     this.Write(msg);
                                                 });
                                             }
@@ -374,13 +375,14 @@ namespace Q.Lib.Socket
             {
                 Task.Run(() =>
                 {
+                    var data = new AckItem(arg);
                     if (action == null)
                     {
-                        this.Write(new SocketMessager(actionKey, arg));
+                        this.Write(new SocketMessager(actionKey, data));
                     }
                     else
                     {
-                        this.Write(new SocketMessager(actionKey, arg), (s, a) =>
+                        this.Write(new SocketMessager(actionKey, data), (s, a) =>
                         {
                             action?.Invoke(a, a.Messager.Data);
                             Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, a.Messager.Data); });
@@ -399,14 +401,15 @@ namespace Q.Lib.Socket
             ManualResetEvent resetEvent = new ManualResetEvent(true);
             T t = default(T);
             resetEvent.Set();
-
-            this.Write(new SocketMessager(actionKey, arg), (s, e) =>
+            var data = new AckItem(arg);
+            this.Write(new SocketMessager(actionKey, data), (s, e) =>
             {
-                t = Json.ToObj<T>(Newtonsoft.Json.JsonConvert.SerializeObject(e.Messager.Data));
+                t = Json.ToObj<T>(Newtonsoft.Json.JsonConvert.SerializeObject(e.Messager.Data?.ResData));
                 resetEvent.Reset();
+                Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, e.Messager.Data); });
             });
             resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
-            Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, t); });
+           
             return t;
         }
 
@@ -554,21 +557,21 @@ namespace Q.Lib.Socket
 
         public T GetData<T>()
         {
-            return Json.Convert2T<T>(Messager.Data);
+            return Json.Convert2T<T>(Messager.Data?.ResData);
         }
         public void Return(object returnData)
         {
-            SocketMessager msg = this.Messager.GetServerBackMessager(returnData);
+            SocketMessager msg = this.Messager.GetServerBackMessager( new AckItem( returnData));
             _client.Write(msg);
         }
         public void ReturnOK()
         {
-            SocketMessager msg = this.Messager.GetServerBackMessager(new { ResCode = 0,ResDesc="OK"});
+            SocketMessager msg = this.Messager.GetServerBackMessager(new AckItem(0,"OK"));
             _client.Write(msg);
         }
         public void ReturnError(string resDesc, int resCode = -1)
         {
-            SocketMessager msg = this.Messager.GetServerBackMessager(new { ResCode = resCode, ResDesc = resDesc });
+            SocketMessager msg = this.Messager.GetServerBackMessager(new AckItem(resCode, resDesc));
             _client.Write(msg);
         }
         public void SendMessage(SocketMessager msg)

@@ -1,4 +1,5 @@
 ﻿using Q.Lib.Extension;
+using Q.Lib.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,22 +22,20 @@ namespace Q.Lib.Socket
         /// <param name="clientName"></param>
         /// <param name="actionKey"></param>
         /// <param name="args"></param>
-        public void SendCommand(string actionKey, object args, Action<ReceiveEventArgs, dynamic> callBack = null, int timeOut = 30)
+        public void SendCommand(string actionKey, object args, Action<ReceiveEventArgs, AckItem> callBack = null, int timeOut = 30)
         {
             lock (this)
             {
                 Task.Run(() =>
                 {
-                    args = args ?? new object();
+                    var data = new AckItem(args);
 
-                    this.AcceptSocket.Write(new SocketMessager(actionKey, args), (s, e) =>
+                    this.AcceptSocket.Write(new SocketMessager(actionKey, data), (s, e) =>
                     {
                         callBack?.Invoke(e, e.Messager.Data);
 
                         Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, args, e.Messager.Data); });
-
-
-                    }, TimeSpan.FromSeconds(30));
+                    }, TimeSpan.FromSeconds(timeOut));
 
                 });
 
@@ -50,13 +49,15 @@ namespace Q.Lib.Socket
             {
                 ManualResetEvent resetEvent = new ManualResetEvent(true);
                 resetEvent.Set();
-                this.AcceptSocket.Write(new SocketMessager(actionKey, arg), (s, e) =>
+                var data = new AckItem(arg);
+                this.AcceptSocket.Write(new SocketMessager(actionKey, data), (s, e) =>
                 {
-                    t = Json.ToObj<T>(Newtonsoft.Json.JsonConvert.SerializeObject(e.Messager.Data));
+                    t = Json.ToObj<T>(Newtonsoft.Json.JsonConvert.SerializeObject(e.Messager.Data?.ResData));
                     resetEvent.Reset();
+                    Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, e.Messager.Data); });
                 });
                 resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
-                Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, t); });
+
             }
             return t;
         }

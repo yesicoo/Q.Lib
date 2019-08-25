@@ -1,4 +1,5 @@
 ﻿using Q.Lib.Extension;
+using Q.Lib.Model;
 using Q.Lib.Utility;
 using System;
 using System.Collections.Generic;
@@ -745,21 +746,21 @@ namespace Q.Lib.Socket
 
             public T GetData<T>()
             {
-                return Json.Convert2T(this.Messager.Data);
+                return Json.Convert2T<T>(this.Messager.Data?.ResData);
             }
             public void Return(object returnData)
             {
-                SocketMessager msg = this.Messager.GetServerBackMessager(returnData);
+                SocketMessager msg = this.Messager.GetServerBackMessager(new AckItem(returnData));
                 _acceptSocket.Write(msg);
             }
             public void ReturnOK()
             {
-                SocketMessager msg = this.Messager.GetServerBackMessager(new { ResCode = 0, ResDesc = "OK" });
+                SocketMessager msg = this.Messager.GetServerBackMessager(new AckItem(0, "OK"));
                 _acceptSocket.Write(msg);
             }
             public void ReturnError(string resDesc,int resCode=-1)
             {
-                SocketMessager msg = this.Messager.GetServerBackMessager(new { ResCode = resCode, ResDesc = resDesc });
+                SocketMessager msg = this.Messager.GetServerBackMessager(new AckItem(resCode, resDesc));
                 _acceptSocket.Write(msg);
             }
 

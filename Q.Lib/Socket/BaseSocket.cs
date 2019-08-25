@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Q.Lib.Model;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -159,14 +160,14 @@ namespace Q.Lib.Socket
         private int _id;
         private string _action;
         private DateTime _remoteTime;
-        private dynamic _data;
+        private AckItem _data;
         private Exception _exception;
 
         public SocketMessager(string action)
             : this(action, null)
         {
         }
-        public SocketMessager(string action, object data)
+        public SocketMessager(string action, AckItem data)
         {
             this._id = Interlocked.Increment(ref _identity);
             this._action = action == null ? string.Empty : action;
@@ -213,11 +214,11 @@ namespace Q.Lib.Socket
             QLog.SendLog_Debug("----->"+messager.Action);
             messager._id = msgItem.ID;
             messager._remoteTime = msgItem.RemoteTime;
-            if (messager._data is Exception) messager._exception = messager._data as Exception;
+            messager._exception = messager.Exception;
             return messager;
         }
 
-        public SocketMessager GetServerBackMessager(object args)
+        public SocketMessager GetServerBackMessager(AckItem args)
         {
             var newMsg = new SocketMessager(this.Action+"_CallBack", args);
             newMsg.Id = this.Id;
@@ -240,7 +241,7 @@ namespace Q.Lib.Socket
         {
             get { return _remoteTime; }
         }
-        public dynamic Data
+        public AckItem Data
         {
             get { return _data; }
         }
@@ -256,7 +257,7 @@ namespace Q.Lib.Socket
         public string Action { set; get; }
         public DateTime RemoteTime { set; get; }
 
-        public dynamic Data { set; get; }
+        public AckItem Data { set; get; }
 
     }
-}
+} 
