@@ -36,7 +36,7 @@ namespace Q.Lib.Socket
                     else
                     {
                         QLog.SendLog_Debug($"命令[{actionKey}] 不存在");
-                        e.AcceptSocket.Write(new SocketMessager("UnKnow Command", new { ResCode = -1, ResDesc = "未知命令" }));
+                        e.ReturnError("未知命令", -101);
                     }
                 });
 

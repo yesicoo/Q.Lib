@@ -757,6 +757,11 @@ namespace Q.Lib.Socket
                 SocketMessager msg = this.Messager.GetServerBackMessager(new { ResCode = 0, ResDesc = "OK" });
                 _acceptSocket.Write(msg);
             }
+            public void ReturnError(string resDesc,int resCode=-1)
+            {
+                SocketMessager msg = this.Messager.GetServerBackMessager(new { ResCode = resCode, ResDesc = resDesc });
+                _acceptSocket.Write(msg);
+            }
 
             public int Receives
             {

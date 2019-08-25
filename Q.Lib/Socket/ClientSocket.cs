@@ -566,7 +566,11 @@ namespace Q.Lib.Socket
             SocketMessager msg = this.Messager.GetServerBackMessager(new { ResCode = 0,ResDesc="OK"});
             _client.Write(msg);
         }
-
+        public void ReturnError(string resDesc, int resCode = -1)
+        {
+            SocketMessager msg = this.Messager.GetServerBackMessager(new { ResCode = resCode, ResDesc = resDesc });
+            _client.Write(msg);
+        }
         public void SendMessage(SocketMessager msg)
         {
             _client.Write(msg);
