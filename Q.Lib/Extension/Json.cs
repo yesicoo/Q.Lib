@@ -48,7 +48,14 @@ namespace Q.Lib.Extension
             }
             else
             {
-                return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(o));
+                var jsonStr = JsonConvert.SerializeObject(o);
+                if (string.IsNullOrEmpty(jsonStr))
+                {
+                    return JsonConvert.DeserializeObject<T>(jsonStr);
+                }else
+                {
+                    return default(T);
+                }
             }
         }
     }

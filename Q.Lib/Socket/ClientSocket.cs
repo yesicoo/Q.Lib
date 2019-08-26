@@ -189,7 +189,7 @@ namespace Q.Lib.Socket
                                                 QLog.SendLog($"指令 {messager.Action} 不存在");
                                                 Task.Run(() =>
                                                 {
-                                                    var msg = messager.GetServerBackMessager(new AckItem(-1,"未知命令"));
+                                                    var msg = messager.GetServerBackMessager(new AckItem(-1, "未知命令"));
                                                     this.Write(msg);
                                                 });
                                             }
@@ -398,19 +398,36 @@ namespace Q.Lib.Socket
 
         public T SendData<T>(string actionKey, object arg, int timeOut = 30)
         {
-            ManualResetEvent resetEvent = new ManualResetEvent(true);
+            ManualResetEvent resetEvent = new ManualResetEvent(false);
             T t = default(T);
-            resetEvent.Set();
+
             var data = new AckItem(arg);
             this.Write(new SocketMessager(actionKey, data), (s, e) =>
             {
-                t = Json.ToObj<T>(Newtonsoft.Json.JsonConvert.SerializeObject(e.Messager.Data?.ResData));
-                resetEvent.Reset();
+                t = Json.Convert2T<T>(e.Messager.Data.ResData);
                 Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, e.Messager.Data); });
+                resetEvent.Set();
             });
             resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
-           
+
             return t;
+        }
+
+        public AckItem SendData(string actionKey, object arg, int timeOut = 30)
+        {
+            ManualResetEvent resetEvent = new ManualResetEvent(false);
+            var data = new AckItem(arg);
+            AckItem result = null;
+            this.Write(new SocketMessager(actionKey, data), (s, e) =>
+            {
+                result = e.Messager.Data;
+
+                Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, e.Messager.Data); });
+                resetEvent.Set();
+            });
+            resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
+
+            return result;
         }
 
         protected virtual void OnClosed(EventArgs e)
@@ -561,12 +578,12 @@ namespace Q.Lib.Socket
         }
         public void Return(object returnData)
         {
-            SocketMessager msg = this.Messager.GetServerBackMessager( new AckItem( returnData));
+            SocketMessager msg = this.Messager.GetServerBackMessager(new AckItem(returnData));
             _client.Write(msg);
         }
         public void ReturnOK()
         {
-            SocketMessager msg = this.Messager.GetServerBackMessager(new AckItem(0,"OK"));
+            SocketMessager msg = this.Messager.GetServerBackMessager(new AckItem(0, "OK"));
             _client.Write(msg);
         }
         public void ReturnError(string resDesc, int resCode = -1)

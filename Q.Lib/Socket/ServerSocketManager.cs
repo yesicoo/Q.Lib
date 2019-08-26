@@ -16,7 +16,7 @@ namespace Q.Lib.Socket
         public static readonly ServerSocketManager Instance = new ServerSocketManager();
         ServerSocketAsync _serverSocket;
         List<SocketClientItem> _clientItems = new List<SocketClientItem>();
-        ConcurrentDictionary<string, Action<ReceiveEventArgs, dynamic>> _actions = new ConcurrentDictionary<string, Action<ReceiveEventArgs, dynamic>>();
+        ConcurrentDictionary<string, Action<ReceiveEventArgs, AckItem>> _actions = new ConcurrentDictionary<string, Action<ReceiveEventArgs, AckItem>>();
         public Action<SocketClientItem> RegisterClientEvent = null;
         public Action<SocketClientItem> RemoveClientEvent = null;
         public Action<SocketClientItem, Exception> ClientErrorEvent = null;
@@ -30,7 +30,7 @@ namespace Q.Lib.Socket
                 {
 
                     var actionKey = e.Messager.Action;
-                    if (_actions.TryGetValue(actionKey, out Action<ReceiveEventArgs, dynamic> action))
+                    if (_actions.TryGetValue(actionKey, out Action<ReceiveEventArgs, AckItem> action))
                     {
                         action?.Invoke(e, e.Messager.Data);
                     }
@@ -96,7 +96,7 @@ namespace Q.Lib.Socket
             this.RegisterAction(SocketMessager.SYS_REGIST.Action, (e, d) =>
             {
 
-                string clientName = d?.ClientName?.ToString();
+                string clientName = d.ResData?.ClientName?.ToString();
                 if (string.IsNullOrEmpty(clientName))
                 {
                     QLog.SendLog_Debug($"{e.AcceptSocket.Id} 注册名称为空，注册失败，已断开连接");
@@ -173,7 +173,7 @@ namespace Q.Lib.Socket
             return _serverSocket.IsRuning();
         }
 
-        public bool RegisterAction(string actionKey, Action<ReceiveEventArgs, dynamic> action)
+        public bool RegisterAction(string actionKey, Action<ReceiveEventArgs, AckItem> action)
         {
             if (string.IsNullOrEmpty(actionKey) || action == null)
             {
@@ -240,15 +240,16 @@ namespace Q.Lib.Socket
             {
                 lock (client)
                 {
-                    ManualResetEvent resetEvent = new ManualResetEvent(true);
+                    ManualResetEvent resetEvent = new ManualResetEvent(false);
 
                     resetEvent.Set();
                     var data = new AckItem(arg);
                     client.AcceptSocket.Write(new SocketMessager(actionKey, data), (s, e) =>
                     {
-                        t = Json.ToObj<T>(Newtonsoft.Json.JsonConvert.SerializeObject(e.Messager.Data?.ResData));
-                        resetEvent.Reset();
+                        t = Json.Convert2T<T>(e.Messager.Data?.ResData);
+                        
                         Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, e.Messager.Data); });
+                        resetEvent.Set();
                     });
                     resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
                 }
@@ -256,6 +257,33 @@ namespace Q.Lib.Socket
             return t;
         }
 
+        public AckItem SendData(string clientName, string actionKey, object arg, int timeOut = 30)
+        {
+            SocketClientItem client = null;
+            AckItem result = null;
+            lock (_clientItems)
+            {
+                client = _clientItems.FirstOrDefault(x => x.ClientName == clientName);
+            }
+
+            if (client != null)
+            {
+                lock (client)
+                {
+                    ManualResetEvent resetEvent = new ManualResetEvent(false);
+                    var data = new AckItem(arg);
+                  
+                    client.AcceptSocket.Write(new SocketMessager(actionKey, data), (s, e) =>
+                    {
+                        result = e.Messager.Data;
+                        Task.Run(() => { BaseSocket.SocketLog?.Invoke(actionKey, arg, e.Messager.Data); });
+                        resetEvent.Set();
+                    });
+                    resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
+                }
+            }
+            return result;
+        }
 
     }
 }
