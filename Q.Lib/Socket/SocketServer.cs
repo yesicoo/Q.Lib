@@ -11,9 +11,8 @@ using static Q.Lib.Socket.ServerSocketAsync;
 
 namespace Q.Lib.Socket
 {
-    public class ServerSocketManager
+    public class SocketServer
     {
-        public static readonly ServerSocketManager Instance = new ServerSocketManager();
         ServerSocketAsync _serverSocket;
         List<SocketClientItem> _clientItems = new List<SocketClientItem>();
         ConcurrentDictionary<string, Action<ReceiveEventArgs, AckItem>> _actions = new ConcurrentDictionary<string, Action<ReceiveEventArgs, AckItem>>();
