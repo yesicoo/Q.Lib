@@ -32,7 +32,7 @@ namespace Q.Lib.Model
 
         public T GetData<T>()
         {
-            Json.Convert2T<T>(this.ResData);
+           return Json.Convert2T<T>(this.ResData);
         }
     }
 }
