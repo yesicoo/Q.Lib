@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Q.Lib.Extension;
+using System;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
@@ -21,12 +22,17 @@ namespace Q.Lib.Model
         public AckItem(int code, string resDesc)
         {
             this.ResCode = code;
-            this.ResDesc = ResDesc;
+            this.ResDesc = resDesc;
         }
 
         public AckItem(dynamic resData)
         {
             this.ResData = resData;
+        }
+
+        public T GetData<T>()
+        {
+            Json.Convert2T<T>(this.ResData);
         }
     }
 }
