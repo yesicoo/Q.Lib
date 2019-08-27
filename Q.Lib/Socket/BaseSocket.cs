@@ -150,7 +150,7 @@ namespace Q.Lib.Socket
     {
         private static int _identity;
         internal static readonly SocketMessager SYS_TEST_LINK = new SocketMessager("\0");
-        internal static readonly SocketMessager SYS_HELLO_WELCOME = new SocketMessager("Hello, Welcome!");
+        internal static readonly SocketMessager SYS_HELLO_WELCOME = new SocketMessager("Hello!");
         internal static readonly SocketMessager SYS_ACCESS_DENIED = new SocketMessager("Access Denied.");
         internal static readonly SocketMessager SYS_QUIT = new SocketMessager("Hi, Bye Bye!");
         internal static readonly SocketMessager SYS_REGIST = new SocketMessager("S_Regist");

@@ -49,7 +49,7 @@ namespace Q.Lib.Extension
             else
             {
                 var jsonStr = JsonConvert.SerializeObject(o);
-                if (string.IsNullOrEmpty(jsonStr))
+                if (!string.IsNullOrEmpty(jsonStr))
                 {
                     return JsonConvert.DeserializeObject<T>(jsonStr);
                 }else
