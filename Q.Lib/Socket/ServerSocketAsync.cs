@@ -763,11 +763,6 @@ namespace Q.Lib.Socket
                 SocketMessager msg = this.Messager.GetServerBackMessager(new AckItem(resCode, resDesc));
                 _acceptSocket.Write(msg);
             }
-
-            public SocketClientItem GetClientItem()
-            {
-
-            }
             public int Receives
             {
                 get { return _receives; }
