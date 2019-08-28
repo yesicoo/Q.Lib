@@ -2,7 +2,7 @@ pipeline:
     compile:
         image: mcr.microsoft.com/dotnet/core/sdk:2.2-alpine3.9
         commands:
-            - dotnet build Q.Lib -c Release -f netstandard2.0;
-            - dotnet pack  Q.Lib -c Release -o nuget -p:TargetFrameworks=netstandard2.0;netcoreapp2.2
+            - dotnet build Q.Lib -c Release -f netstandard2.0
+            - dotnet pack  Q.Lib -c Release -o nuget -p:TargetFrameworks=netstandard2.0
             - dotnet nuget push -s http://nuget.yesicoo.com/v3/index.json -k dp1rtfq_fyzs9wl Q.Lib\Nuget\*.nupkg
  
