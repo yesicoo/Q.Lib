@@ -2,7 +2,6 @@ pipeline:
     compile:
         image: microsoft/aspnetcore-build
         commands:
-            - dotnet build Q.Lib\.
             - dotnet pack  Q.Lib\ -c Release -o nuget
             - dotnet nuget push -s http://nuget.yesicoo.com/v3/index.json -k dp1rtfq_fyzs9wl Q.Lib\Nuget\*.nupkg
  
