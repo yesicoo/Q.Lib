@@ -166,6 +166,10 @@ namespace Q.Lib.Socket
         {
             return _clientItems.FirstOrDefault(x => x.ClientName == clientName);
         }
+        public SocketClientItem GetClientByID(int clientID)
+        {
+            return _clientItems.FirstOrDefault(x => x.ClientID == clientID);
+        }
 
         internal bool SocketServerStatus()
         {

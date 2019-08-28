@@ -764,6 +764,10 @@ namespace Q.Lib.Socket
                 _acceptSocket.Write(msg);
             }
 
+            public SocketClientItem GetClientItem()
+            {
+
+            }
             public int Receives
             {
                 get { return _receives; }
