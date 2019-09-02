@@ -34,7 +34,7 @@ namespace Q.Lib.Socket
         private string _hostname;
         private int _port;
         private string _clientName;
-        private ConcurrentDictionary<string, Action<ClientSocketReceiveEventArgs, dynamic>> _actions = new ConcurrentDictionary<string, Action<ClientSocketReceiveEventArgs, dynamic>>();
+        private ConcurrentDictionary<string, Action<ClientSocketReceiveEventArgs, AckItem>> _actions = new ConcurrentDictionary<string, Action<ClientSocketReceiveEventArgs, AckItem>>();
 
         private WorkQueue _receiveWQ;
         private WorkQueue _receiveSyncWQ;
@@ -273,7 +273,7 @@ namespace Q.Lib.Socket
             }
         }
 
-        public bool RegisterAction(string actionKey, Action<ClientSocketReceiveEventArgs, dynamic> action)
+        public bool RegisterAction(string actionKey, Action<ClientSocketReceiveEventArgs, AckItem> action)
         {
             if (string.IsNullOrEmpty(actionKey) || action == null)
             {
@@ -368,7 +368,7 @@ namespace Q.Lib.Socket
         }
 
 
-        public void SendCommand(string actionKey, object arg, Action<ClientSocketReceiveEventArgs, dynamic> action = null, int timeOut = 30)
+        public void SendCommand(string actionKey, object arg, Action<ClientSocketReceiveEventArgs, AckItem> action = null, int timeOut = 30)
         {
 
             if (this.Running)
