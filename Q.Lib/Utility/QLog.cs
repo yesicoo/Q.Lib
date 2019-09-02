@@ -19,7 +19,7 @@ namespace Q.Lib
         static int LogCycle = 0;
         static string DirPath = string.Empty;
         static string BasePath = System.AppDomain.CurrentDomain.BaseDirectory;
-        static bool isRun = false;
+        static bool isRun = false; 
         public static Action<string> ExceptionLog;
         /// <summary>
         /// 日志级别
