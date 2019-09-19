@@ -105,7 +105,7 @@ namespace Q.Lib
                 //如果输入的是汉字
                 if (reg.IsMatch(mChar[j].ToString()))
                 {
-                    arr = System.Text.Encoding.Default.GetBytes(mChar[j].ToString());
+                    arr = Encoding.GetEncoding("GB2312").GetBytes(mChar[j].ToString());
                     M1 = (short)(arr[0]);
                     M2 = (short)(arr[1]);
                     asc = M1 * 256 + M2 - 65536;
@@ -171,7 +171,7 @@ namespace Q.Lib
                 return null;
             try
             {
-                byte[] b = System.Text.UnicodeEncoding.Default.GetBytes(chineseStr);
+                byte[] b = Encoding.GetEncoding("GB2312").GetBytes(chineseStr);
                 string res = "";
                 for (int i = 0; i < b.Length; )
                 {
@@ -187,7 +187,7 @@ namespace Q.Lib
                     }
                     else if (Convert.ToByte(b[i]) > 127)//汉字
                     {
-                        string tmp = System.Text.UnicodeEncoding.Default.GetString(b, i, 2);
+                        string tmp = Encoding.GetEncoding("GB2312").GetString(b, i, 2);
                         tmp = HZToCode(tmp);
                         if (tmp.Length > 0)
                             res += tmp[0];
@@ -223,7 +223,7 @@ namespace Q.Lib
             try
             {
                 string resultStr = "";
-                byte[] arrCN = Encoding.Default.GetBytes(chineseStr);
+                byte[] arrCN = Encoding.GetEncoding("GB2312").GetBytes(chineseStr);
                 if (arrCN.Length > 1)
                 {
                     int area = (short)arrCN[0];
@@ -238,7 +238,7 @@ namespace Q.Lib
                         if (i != 25) max = areacode[i + 1];
                         if (areacode[i] <= code && code < max)
                         {
-                            resultStr = Encoding.Default.GetString(new byte[] { (byte)(65 + i) });
+                            resultStr = Encoding.GetEncoding("GB2312").GetString(new byte[] { (byte)(65 + i) });
                             break;
                         }
                     }
