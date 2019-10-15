@@ -7,6 +7,10 @@ using System.Text.RegularExpressions;
 
 namespace Q.Lib
 {
+
+#if NETCOREAPP
+    //不支持
+#else
     public class Zh2PinYin
     {
         //定义拼音区编码数组
@@ -173,7 +177,7 @@ namespace Q.Lib
             {
                 byte[] b = Encoding.GetEncoding("GB2312").GetBytes(chineseStr);
                 string res = "";
-                for (int i = 0; i < b.Length; )
+                for (int i = 0; i < b.Length;)
                 {
                     if (i == b.Length - 1)
                     {
@@ -229,8 +233,8 @@ namespace Q.Lib
                     int area = (short)arrCN[0];
                     int pos = (short)arrCN[1];
                     int code = (area << 8) + pos;
-                    int[] areacode = { 45217, 45253, 45761, 46318, 46826, 47010, 47297, 47614,   
-                       48119, 48119, 49062, 49324, 49896, 50371, 50614, 50622, 50906, 51387,   
+                    int[] areacode = { 45217, 45253, 45761, 46318, 46826, 47010, 47297, 47614,
+                       48119, 48119, 49062, 49324, 49896, 50371, 50614, 50622, 50906, 51387,
                        51446, 52218, 52698, 52698, 52698, 52980, 53689, 54481 };
                     for (int i = 0; i < 26; i++)
                     {
@@ -252,4 +256,5 @@ namespace Q.Lib
             }
         }
     }
+#endif
 }
