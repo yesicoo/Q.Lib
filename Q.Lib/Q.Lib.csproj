@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>NET45;NET46;NET472;netstandard2.0;netcoreapp2.2</TargetFrameworks>
+    <TargetFrameworks>NET45;NET46;NET472;netcoreapp2.2</TargetFrameworks>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>XuQing</Authors>
     <Company>XuQing</Company>
     <PackageReleaseNotes>一款常用工具合集，简单的socket服务客户端，日志记录，数据转换等</PackageReleaseNotes>
-    <Version>1.0.4.14</Version>
+    <Version>1.0.4.15</Version>
     <Description>修改中文转拼音bug</Description>
   </PropertyGroup>
   <ItemGroup>
