@@ -6,7 +6,7 @@
     <Authors>XuQing</Authors>
     <Company>XuQing</Company>
     <PackageReleaseNotes>一款常用工具合集，简单的socket服务客户端，日志记录，数据转换等</PackageReleaseNotes>
-    <Version>1.0.4.13</Version>
+    <Version>1.0.4.16</Version>
     <Description>修改中文转拼音bug</Description>
   </PropertyGroup>
   <ItemGroup>
