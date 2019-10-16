@@ -246,8 +246,27 @@ namespace Q.Lib.QSocket
             }
         }
 
+        public AckItem SendAsync(string name,  string command, object param, int timeOut = 30)
+        {
+            var client = _Clients.FirstOrDefault(x => x.ClientName == name);
+            if (client != null)
+            {
+                return SendSync(client, command, param,timeOut);
+            }
+            else
+            {
+                return new AckItem(-1, "终端不存在");
+            }
+        }
 
-
+        /// <summary>
+        /// 同步接收返回结果
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="command"></param>
+        /// <param name="param"></param>
+        /// <param name="timeOut"></param>
+        /// <returns></returns>
         public AckItem SendSync(SocketServerClient client, string command, object param, int timeOut = 30)
         {
             AckItem ack = new AckItem(-1, "请求超时");
