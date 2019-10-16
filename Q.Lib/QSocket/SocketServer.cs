@@ -16,9 +16,6 @@ namespace Q.Lib.QSocket
     {
         private System.Net.Sockets.Socket _ServerSocket;
         private int _CurrentClientCount;
-        private int _BuffrSize;
-        private Semaphore _MaxAcceptedClients;
-        private BufferManager _bufferManager;
         private List<SocketServerClient> _Clients = new List<SocketServerClient>();
         private bool disposed;
         public bool IsRunning { get; private set; }
@@ -202,12 +199,12 @@ namespace Q.Lib.QSocket
         #region 发送数据
 
 
-        public void Send(string name, string command, object param, Action<string> SendOver, Action<AckItem> callback)
+        public void SendAsync(string name, string command, object param, Action<string> SendOver, Action<AckItem> callback)
         {
             var client = _Clients.FirstOrDefault(x => x.ClientName == name);
             if (client != null)
             {
-                Send(client, command, param, SendOver, callback);
+                SendAsync(client, command, param, SendOver, callback);
             }
             else
             {
@@ -221,7 +218,7 @@ namespace Q.Lib.QSocket
         /// </summary>
         /// <param name="e"></param>
         /// <param name="data"></param>
-        public void Send(SocketServerClient client, string command, object param, Action<string> SendOver, Action<AckItem> callback)
+        public void SendAsync(SocketServerClient client, string command, object param, Action<string> SendOver, Action<AckItem> callback)
         {
             if (client.SocketAsyncEventArgs.SocketError == SocketError.Success)
             {
@@ -248,6 +245,51 @@ namespace Q.Lib.QSocket
                 }
             }
         }
+
+
+
+        public AckItem SendSync(SocketServerClient client, string command, object param, int timeOut = 30)
+        {
+            AckItem ack = new AckItem(-1, "请求超时");
+            if (client.SocketAsyncEventArgs.SocketError == SocketError.Success)
+            {
+
+                if (client.Socket.Connected)
+                {
+                    ManualResetEvent resetEvent = new ManualResetEvent(false);
+                    string callBackCommand = $"CallBack_{command}_{QTools.RandomCode(5)}";
+
+                    var data = Encoding.UTF8.GetBytes(Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand }));
+                    Array.Copy(data, 0, client.SocketAsyncEventArgs.Buffer, 0, data.Length);//设置发送数据
+                    _CallBacks.TryAdd(callBackCommand, (a) =>
+                    {
+                        ack = a;
+                        resetEvent.Set();
+                    });
+
+                    if (client.Socket.SendAsync(client.SocketAsyncEventArgs))//投递发送请求，这个函数有可能同步发送出去，这时返回false，并且不会引发SocketAsyncEventArgs.Completed事件
+                    {
+                        CloseClientSocket(client);
+                        resetEvent.Set();
+                        return new AckItem(-1, "发送失败");
+                    }
+                    resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
+                    return ack;
+                }
+                else
+                {
+                    return new AckItem(-1, "终端状态错误");
+                }
+            }
+            else
+            {
+                return new AckItem(-1, "终端状态错误");
+            }
+
+        }
+
+
+
         #endregion
 
 
