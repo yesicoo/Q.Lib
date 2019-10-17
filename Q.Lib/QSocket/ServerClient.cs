@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Q.Lib.QSocket
 {
-    public class SocketServerClient
+    public class ServerClient: BaseSocket
     {
         public int Index { set; get; }
         public string ClientName { get; internal set; }
@@ -18,7 +18,7 @@ namespace Q.Lib.QSocket
 
         public void CallBack(string callBackCommand, AckItem ack)
         {
-            var data = Encoding.UTF8.GetBytes(Json.ToJsonStr(new { Command = callBackCommand, Data = ack }));
+            var data = WriteStream(Json.ToJsonStr(new { Command = callBackCommand, Data = ack }));
             Array.Copy(data, 0, this.SocketAsyncEventArgs.Buffer, 0, data.Length);//设置发送数据
             this.Socket.SendAsync(this.SocketAsyncEventArgs);
         }
