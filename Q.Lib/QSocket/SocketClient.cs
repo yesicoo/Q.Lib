@@ -14,14 +14,27 @@ using System.Threading.Tasks;
 
 namespace Q.Lib.QSocket
 {
-    public class SocketClient: BaseSocket
+    public class SocketClient : BaseSocket
     {
         private TcpClient _Client;
         private int port;
         private IPAddress remote;
 
+        /// <summary>
+        /// 终端注册完成
+        /// </summary>
+        public Action<SocketClient> Registed;
+        /// <summary>
+        /// 终端连接成功
+        /// </summary>
         public Action<SocketClient> Connected;
+        /// <summary>
+        /// 终端连接关闭
+        /// </summary>
         public Action<SocketClient> Closed;
+        /// <summary>
+        /// 出错
+        /// </summary>
         public Action<Exception> Error;
 
         public bool IsRuning = false;
@@ -45,7 +58,7 @@ namespace Q.Lib.QSocket
 
 
 
-        public void Connect()
+        public void Connect(string serverName)
         {
             try
             {
@@ -57,7 +70,7 @@ namespace Q.Lib.QSocket
                 Connected?.Invoke(this);
                 IsRuning = true;
                 Watch();
-
+                RegistClient(serverName);
 
             }
             catch (Exception ex)
@@ -67,7 +80,38 @@ namespace Q.Lib.QSocket
             }
         }
 
-        public void SendAsync(string command, object param, Action<AckItem> callBack)
+        void RegistClient(string clientName)
+        {
+           var ack = SendSync("Sys_Regist", new { ClientName = clientName });
+            if (ack.ResCode == 0)
+            {
+                Registed?.Invoke(this);
+            }
+        }
+       
+
+        public bool RegistAction(string actionKey, Action<SocketClient, SocketMsg> action)
+        {
+            if (string.IsNullOrEmpty(actionKey) || action == null)
+            {
+                QLog.SendLog($"命令[{actionKey}] 或这执行方法无效");
+                return false;
+            }
+
+            if (_Commands.ContainsKey(actionKey))
+            {
+                QLog.SendLog($"命令[{actionKey}] 已存在，请勿重复添加");
+                return false;
+            }
+            else
+            {
+                return _Commands.TryAdd(actionKey, action);
+
+            }
+        }
+
+
+        public void SendAsync(string command, object param, Action<AckItem> callBack=null)
         {
             try
             {
@@ -232,6 +276,18 @@ namespace Q.Lib.QSocket
              }, "KeepLive");
         }
 
-        
+
+        public void ReturnOK(string callBackCommand)
+        {
+            this.SendAsync(callBackCommand, new AckItem());
+        }
+        public void Return(string callBackCommand,object data)
+        {
+            this.SendAsync(callBackCommand, new AckItem(data));
+        }
+        public void ReturnError(string callBackCommand, string errMsg)
+        {
+            this.SendAsync(callBackCommand, new AckItem(-1,errMsg));
+        }
     }
 }

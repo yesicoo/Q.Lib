@@ -18,9 +18,26 @@ namespace Q.Lib.QSocket
 
         public void CallBack(string callBackCommand, AckItem ack)
         {
-            var data = WriteStream(Json.ToJsonStr(new { Command = callBackCommand, Data = ack }));
-            Array.Copy(data, 0, this.SocketAsyncEventArgs.Buffer, 0, data.Length);//设置发送数据
-            this.Socket.SendAsync(this.SocketAsyncEventArgs);
+            if (!string.IsNullOrEmpty(callBackCommand))
+            {
+                var data = WriteStream(Json.ToJsonStr(new { Command = callBackCommand, Data = ack }));
+                Array.Copy(data, 0, this.SocketAsyncEventArgs.Buffer, 0, data.Length);//设置发送数据
+                this.Socket.SendAsync(this.SocketAsyncEventArgs);
+            }
+        }
+
+        public void Return(string command,object obj)
+        {
+            CallBack(command, new AckItem(obj));
+        }
+        public void ReturnOK(string command)
+        {
+            CallBack(command, new AckItem());
+        }
+
+        public void ReturnError(string command,string resDesc)
+        {
+            CallBack(command, new AckItem(-1, resDesc));
         }
     }
 }

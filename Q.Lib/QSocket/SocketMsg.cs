@@ -10,7 +10,7 @@ namespace Q.Lib.QSocket
     public class SocketMsg
     {
         public string Command { set; get; }
-        public object Data { set; get; }
+        public dynamic Data { set; get; }
         public string CallBackCommand { set; get; }
 
         public T GetObj<T>()

@@ -19,6 +19,7 @@ namespace Q.Lib.QSocket
         private List<ServerClient> _Clients = new List<ServerClient>();
         private BufferManager _BufferManager;
         private bool disposed;
+        private Semaphore _maxAcceptedClients;
         public bool IsRunning { get; private set; }
 
         private ConcurrentDictionary<string, Action<ServerClient, SocketMsg>> _Commands = new ConcurrentDictionary<string, Action<ServerClient, SocketMsg>>();
@@ -32,6 +33,11 @@ namespace Q.Lib.QSocket
         //新客户端连接
         public Action<ServerClient> NewClient;
 
+        public Action<ServerClient> RegistClient;
+
+        //客户端移除
+        public Action<ServerClient> RemoveClient;
+
 
         #region 启动
         public bool Start(int port, int maxClient = 200)
@@ -39,11 +45,13 @@ namespace Q.Lib.QSocket
             try
             {
                 _BufferManager = new BufferManager(1024 * maxClient * 2, 1024);
+                _maxAcceptedClients = new Semaphore(maxClient, maxClient);
                 _BufferManager.InitBuffer();
                 IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Any, port);
                 _ServerSocket = new System.Net.Sockets.Socket(IPAddress.Any.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                 _ServerSocket.Bind(localEndPoint);
                 _ServerSocket.Listen(maxClient);
+                _Commands.TryAdd("Sys_Regist", _RegistClient);// 系统客户端注册
                 StartAccept(null);
                 StartOver?.Invoke();
                 return true;
@@ -56,6 +64,43 @@ namespace Q.Lib.QSocket
         }
         #endregion
 
+        void _RegistClient(ServerClient client, SocketMsg msg)
+        {
+            string clientName = msg.Data?.ClientName;
+            if (!string.IsNullOrEmpty(clientName))
+            {
+                client.ClientName = clientName;
+                client.CallBack(msg.CallBackCommand, new AckItem());
+                RegistClient?.Invoke(client);
+            }
+            else
+            {
+                client.CallBack(msg.CallBackCommand, new AckItem(-1, "字段 ClientName 缺失"));
+            }
+        }
+
+
+        public bool RegisterAction(string actionKey, Action<ServerClient, SocketMsg> action)
+        {
+            if (string.IsNullOrEmpty(actionKey) || action == null)
+            {
+                QLog.SendLog($"命令[{actionKey}] 或这执行方法无效");
+                return false;
+            }
+
+            if (_Commands.ContainsKey(actionKey))
+            {
+                QLog.SendLog($"命令[{actionKey}] 已存在，请勿重复添加");
+                return false;
+            }
+            else
+            {
+                return _Commands.TryAdd(actionKey, action);
+
+            }
+        }
+
+
         #region 接受客户端连接
 
         private void StartAccept(SocketAsyncEventArgs acceptEventArg)
@@ -63,25 +108,24 @@ namespace Q.Lib.QSocket
             if (acceptEventArg == null)  //初始化用
             {
                 acceptEventArg = new SocketAsyncEventArgs();
-                acceptEventArg.Completed += new EventHandler<SocketAsyncEventArgs>(OnAcceptCompleted); //回调函数 实例化
+                acceptEventArg.Completed += (s, e) => { ProcessAccept(e); };
                 _BufferManager.SetBuffer(acceptEventArg);
             }
             else
             {
                 acceptEventArg.AcceptSocket = null;
             }
-            bool bl = _ServerSocket.AcceptAsync(acceptEventArg); //该异步方法 每次只能接收一个连接。需要循环调用
 
-            if (!bl)
+            _maxAcceptedClients.WaitOne();
+            if (!_ServerSocket.AcceptAsync(acceptEventArg))
             {
                 this.ProcessAccept(acceptEventArg);
+
+                //如果I/O挂起等待异步则触发AcceptAsyn_Asyn_Completed事件
+                //此时I/O操作同步完成，不会触发Asyn_Completed事件，所以指定BeginAccept()方法
             }
         }
 
-        private void OnAcceptCompleted(object sender, SocketAsyncEventArgs e)
-        {
-            ProcessAccept(e);
-        }
         private void ProcessAccept(SocketAsyncEventArgs e)
         {
             if (e.SocketError == SocketError.Success)
@@ -101,6 +145,17 @@ namespace Q.Lib.QSocket
                         {
                             ProcessReceive(client);
                         }
+
+                        QCrontab.RunOnceWithTime(DateTime.Now.AddSeconds(20), () =>
+                        {
+
+                            if (string.IsNullOrEmpty(client.ClientName))
+                            {
+                                QLog.SendLog($"终端{socket.RemoteEndPoint.ToString()} 20s未注册，剔除");
+                                CloseClientSocket(client);
+                            }
+
+                        }, $"终端{socket.RemoteEndPoint.ToString()}注册检查");
                     }
                     catch (SocketException ex)
                     {
@@ -205,7 +260,7 @@ namespace Q.Lib.QSocket
         #region 发送数据
 
 
-        public void SendAsync(string name, string command, object param, Action<AckItem> callback)
+        public void SendAsync(string name, string command, object param, Action<AckItem> callback = null)
         {
             var client = _Clients.FirstOrDefault(x => x.ClientName == name);
             if (client != null)
@@ -220,7 +275,7 @@ namespace Q.Lib.QSocket
         /// </summary>
         /// <param name="e"></param>
         /// <param name="data"></param>
-        public void SendAsync(ServerClient client, string command, object param, Action<AckItem> callback)
+        public void SendAsync(ServerClient client, string command, object param, Action<AckItem> callback = null)
         {
             if (client.SocketAsyncEventArgs.SocketError == SocketError.Success)
             {
@@ -328,13 +383,14 @@ namespace Q.Lib.QSocket
         #endregion
 
         #region 关闭连接
-        private void CloseClientSocket(ServerClient e)
+        private void CloseClientSocket(ServerClient c)
         {
 
-            CloseClientSocket(e.Socket, e.SocketAsyncEventArgs);
+            CloseClientSocket(c.Socket, c.SocketAsyncEventArgs);
             lock (_Clients)
             {
-                _Clients.Remove(e);
+                _Clients.Remove(c);
+                RemoveClient?.Invoke(c);
             }
         }
 
@@ -353,6 +409,7 @@ namespace Q.Lib.QSocket
                 socket.Close();
             }
             Interlocked.Decrement(ref _CurrentClientCount);
+            _maxAcceptedClients.Release();
         }
         #endregion
 
