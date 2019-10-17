@@ -124,7 +124,7 @@ namespace Q.Lib.QSocket
                     }
 
                     var sendData = WriteStream(Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand }));
-                    _Client.GetStream().WriteAsync(sendData, 0, sendData.Length);
+                    _Client.GetStream().Write(sendData, 0, sendData.Length);
                     _CallBacks.TryAdd(callBackCommand, callBack);
                 }
             }
@@ -146,7 +146,7 @@ namespace Q.Lib.QSocket
                     ManualResetEvent resetEvent = new ManualResetEvent(false);
                     string callBackCommand = $"CallBack_{command}_{QTools.RandomCode(5)}";
                     var sendData = WriteStream(Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand }));
-                    _Client.GetStream().WriteAsync(sendData, 0, sendData.Length);
+                    _Client.GetStream().Write(sendData, 0, sendData.Length);
                     _CallBacks.TryAdd(callBackCommand, (r) =>
                     {
 

@@ -3,6 +3,7 @@ using Q.Lib.Model;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -18,7 +19,9 @@ namespace Q.Lib.QSocket
         private int _CurrentClientCount;
         private List<ServerClient> _Clients = new List<ServerClient>();
         private BufferManager _BufferManager;
+        private ServerClientPool _ServerClientPool;
         private bool disposed;
+        private int _ClientIndex;
         private Semaphore _maxAcceptedClients;
         public bool IsRunning { get; private set; }
 
@@ -39,6 +42,7 @@ namespace Q.Lib.QSocket
         public Action<ServerClient> RemoveClient;
 
 
+
         #region 启动
         public bool Start(int port, int maxClient = 200)
         {
@@ -46,7 +50,34 @@ namespace Q.Lib.QSocket
             {
                 _BufferManager = new BufferManager(1024 * maxClient * 2, 1024);
                 _maxAcceptedClients = new Semaphore(maxClient, maxClient);
+                _ServerClientPool = new ServerClientPool(maxClient);
                 _BufferManager.InitBuffer();
+
+
+                for (int i = 0; i < maxClient; i++)
+                {
+                    ServerClient sc = new ServerClient();
+                    sc.SocketAsyncEventArgs = new SocketAsyncEventArgs();
+                    sc.SocketAsyncEventArgs.Completed += (s, e) =>
+                    {
+                        switch (e.LastOperation)
+                        {
+                            case SocketAsyncOperation.Receive:
+                                ProcessReceive(sc);
+                                break;
+                            case SocketAsyncOperation.Send:
+                                ProcessSend(sc);
+                                break;
+                            default:
+                                Error.Invoke(new ArgumentException("The last operation completed on the socket was not a receive or send"));
+                                break;
+                        }
+                    };
+                    _BufferManager.SetBuffer(sc.SocketAsyncEventArgs);
+                    _ServerClientPool.Push(sc);
+                }
+
+
                 IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Any, port);
                 _ServerSocket = new System.Net.Sockets.Socket(IPAddress.Any.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                 _ServerSocket.Bind(localEndPoint);
@@ -105,6 +136,9 @@ namespace Q.Lib.QSocket
 
         private void StartAccept(SocketAsyncEventArgs acceptEventArg)
         {
+
+
+
             if (acceptEventArg == null)  //初始化用
             {
                 acceptEventArg = new SocketAsyncEventArgs();
@@ -115,6 +149,7 @@ namespace Q.Lib.QSocket
             {
                 acceptEventArg.AcceptSocket = null;
             }
+
 
             _maxAcceptedClients.WaitOne();
             if (!_ServerSocket.AcceptAsync(acceptEventArg))
@@ -136,26 +171,33 @@ namespace Q.Lib.QSocket
                     try
                     {
                         Interlocked.Increment(ref _CurrentClientCount);//原子操作加1
-                        var client = new ServerClient();
-                        client.Socket = socket;
-                        client.SocketAsyncEventArgs = e;
-                        NewClient?.Invoke(client);
 
-                        if (!socket.ReceiveAsync(e))//投递接收请求
+                        var client = _ServerClientPool.Pop();
+                        client.Socket = socket;
+                        Interlocked.Increment(ref _ClientIndex);
+                        client.Index = _ClientIndex;
+                        client.Status = 1;
+
+                        NewClient?.Invoke(client);
+                        lock (_Clients)
+                        {
+                            _Clients.Add(client);
+                        }
+                        if (!socket.ReceiveAsync(client.SocketAsyncEventArgs))//投递接收请求
                         {
                             ProcessReceive(client);
                         }
 
-                        QCrontab.RunOnceWithTime(DateTime.Now.AddSeconds(20), () =>
-                        {
+                        client.CrontabTaskID = QCrontab.RunOnceWithTime(DateTime.Now.AddSeconds(20), () =>
+                         {
+                             client.CrontabTaskID = null;
+                             if (string.IsNullOrEmpty(client.ClientName))
+                             {
+                                 QLog.SendLog($"[终端{client.Index}]{socket.RemoteEndPoint.ToString()} 20s未注册，剔除");
+                                 CloseClientSocket(client);
+                             }
 
-                            if (string.IsNullOrEmpty(client.ClientName))
-                            {
-                                QLog.SendLog($"终端{socket.RemoteEndPoint.ToString()} 20s未注册，剔除");
-                                CloseClientSocket(client);
-                            }
-
-                        }, $"终端{socket.RemoteEndPoint.ToString()}注册检查");
+                         }, $"[终端{_ClientIndex}]注册检查");
                     }
                     catch (SocketException ex)
                     {
@@ -169,90 +211,142 @@ namespace Q.Lib.QSocket
         #endregion
 
         #region 数据接收
-        private void ProcessReceive(ServerClient e)
+        private void ProcessReceive(ServerClient c)
         {
 
-            if (e.SocketAsyncEventArgs.SocketError == SocketError.Success)//if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
+            if (c.SocketAsyncEventArgs.SocketError == SocketError.Success)//if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
                 // 检查远程主机是否关闭连接
-                if (e.SocketAsyncEventArgs.BytesTransferred > 0)
+                if (c.SocketAsyncEventArgs.BytesTransferred > 0)
                 {
                     //判断所有需接收的数据是否已经完成
-                    if (e.Socket.Available == 0)
+                    if (c.Socket.Available == 0)
                     {
-                        byte[] data = new byte[e.SocketAsyncEventArgs.BytesTransferred];
-                        Array.Copy(e.SocketAsyncEventArgs.Buffer, e.SocketAsyncEventArgs.Offset, data, 0, data.Length);//从e.Buffer块中复制数据出来，保证它可重用
-
-                        string msgStr = Encoding.UTF8.GetString(data.Skip(8).ToArray());
-                        Task.Run(() =>
+                        byte[] data = new byte[c.SocketAsyncEventArgs.BytesTransferred];
+                        Array.Copy(c.SocketAsyncEventArgs.Buffer, c.SocketAsyncEventArgs.Offset, data, 0, data.Length);//从e.Buffer块中复制数据出来，保证它可重用
+                        lock (c.Buffer)
                         {
-                            try
-                            {
-                                if (msgStr.StartsWith("Ping"))
-                                {
-                                    //保活消息
-                                    byte[] res = Encoding.UTF8.GetBytes("Pong");
-                                    e.Socket.Send(res, res.Length, SocketFlags.None);
-                                }
-                                else if (msgStr.StartsWith("Pong"))
-                                {
-                                    //保活消息 丢弃
-                                }
-                                else if (msgStr.StartsWith("{"))
-                                {
-                                    SocketMsg socketMsg = Json.ToObj<SocketMsg>(msgStr);
+                            c.Buffer.AddRange(data);
+                        }
 
-                                    if (!string.IsNullOrEmpty(socketMsg.Command))
+
+                        do
+                        {
+                            byte[] lenBytes = c.Buffer.GetRange(0, 8).ToArray();
+                            string lengthStr = Encoding.UTF8.GetString(lenBytes, 0, lenBytes.Length);
+                            if (int.TryParse(lengthStr, NumberStyles.HexNumber, null, out var packageLen))
+                            {
+                                if (packageLen > c.Buffer.Count)
+                                {   //长度不够时,退出循环,让程序继续接收  
+                                    break;
+                                }
+                                byte[] rev = c.Buffer.GetRange(8, packageLen - 8).ToArray();
+
+                                //移除
+                                lock (c.Buffer)
+                                {
+                                    c.Buffer.RemoveRange(0, packageLen);
+                                }
+
+                                string msgStr = Encoding.UTF8.GetString(rev);
+                                Task.Run(() =>
+                                {
+                                    try
                                     {
-                                        if (socketMsg.Command.StartsWith("CallBack_"))
+                                        if (msgStr.StartsWith("Ping"))
                                         {
-                                            //移除并取出调用
-                                            if (_CallBacks.TryRemove(socketMsg.Command, out var commandAction))
+                                            //保活消息
+                                            byte[] res = Encoding.UTF8.GetBytes("Pong");
+                                            c.Socket.Send(res, res.Length, SocketFlags.None);
+                                        }
+                                        else if (msgStr.StartsWith("Pong"))
+                                        {
+                                            //保活消息 丢弃
+                                        }
+                                        else if (msgStr.StartsWith("{"))
+                                        {
+                                            SocketMsg socketMsg = Json.ToObj<SocketMsg>(msgStr);
+
+                                            if (!string.IsNullOrEmpty(socketMsg.Command))
                                             {
-                                                commandAction.Invoke(Json.Convert2T<AckItem>(socketMsg.Data));
+                                                if (socketMsg.Command.StartsWith("CallBack_"))
+                                                {
+                                                    //移除并取出调用
+                                                    if (_CallBacks.TryRemove(socketMsg.Command, out var commandAction))
+                                                    {
+                                                        commandAction.Invoke(Json.Convert2T<AckItem>(socketMsg.Data));
+                                                    }
+                                                    else
+                                                    {
+                                                        QLog.SendLog_Debug("回调命令:" + socketMsg.Command + "不存在");
+                                                    }
+                                                }
+                                                else if (_Commands.ContainsKey(socketMsg.Command))
+                                                {
+                                                    _Commands[socketMsg.Command].Invoke(c, socketMsg);
+                                                }
+                                                else
+                                                {
+                                                    QLog.SendLog_Debug("未识别命令:" + socketMsg.Command);
+                                                }
                                             }
                                             else
                                             {
-                                                QLog.SendLog_Debug("回调命令:" + socketMsg.Command + "不存在");
+                                                QLog.SendLog_Debug("未找到命令:" + msgStr);
                                             }
-                                        }
-                                        else if (_Commands.ContainsKey(socketMsg.Command))
-                                        {
-                                            _Commands[socketMsg.Command].Invoke(e, socketMsg);
                                         }
                                         else
                                         {
-                                            QLog.SendLog_Debug("未识别命令:" + socketMsg.Command);
+                                            QLog.SendLog_Debug("未识别消息:" + msgStr);
                                         }
                                     }
-                                    else
+                                    catch (Exception ex)
                                     {
-                                        QLog.SendLog_Debug("未找到命令:" + msgStr);
+                                        Error?.Invoke(ex);
                                     }
-                                }
-                                else
-                                {
-                                    QLog.SendLog_Debug("未识别消息:" + msgStr);
-                                }
+                                });
                             }
-                            catch (Exception ex)
+                            else
                             {
-                                Error?.Invoke(ex);
+                                lock (c.Buffer)
+                                {
+                                    //头部未包含长度信息，丢掉
+                                    c.Buffer.Clear();
+                                    break;
+                                }
                             }
-                        });
 
-                    }
+                        } while (c.Buffer.Count > 8);
 
-                    if (!e.Socket.ReceiveAsync(e.SocketAsyncEventArgs))//为接收下一段数据，投递接收请求，这个函数有可能同步完成，这时返回false，并且不会引发SocketAsyncEventArgs.Completed事件
-                    {
-                        //同步接收时处理接收完成事件
-                        ProcessReceive(e);
+                        if (!c.Socket.ReceiveAsync(c.SocketAsyncEventArgs))//为接收下一段数据，投递接收请求，这个函数有可能同步完成，这时返回false，并且不会引发SocketAsyncEventArgs.Completed事件
+                        {
+                            //同步接收时处理接收完成事件
+                            ProcessReceive(c);
+                        }
                     }
                 }
             }
             else
             {
-                CloseClientSocket(e);
+                CloseClientSocket(c);
+            }
+        }
+
+        private void ProcessSend(ServerClient c)
+        {
+            if (c.SocketAsyncEventArgs.SocketError == SocketError.Success)
+            {
+                // done echoing data back to the client  
+                // read the next block of data send from the client  
+                bool willRaiseEvent = c.Socket.ReceiveAsync(c.SocketAsyncEventArgs);
+                if (!willRaiseEvent)
+                {
+                    ProcessReceive(c);
+                }
+            }
+            else
+            {
+                CloseClientSocket(c);
             }
         }
         #endregion
@@ -282,19 +376,27 @@ namespace Q.Lib.QSocket
 
                 if (client.Socket.Connected)
                 {
-                    string callBackCommand = null;
-                    if (callback != null)
+                    try
                     {
-                        callBackCommand = $"CallBack_{command}_{QTools.RandomCode(5)}";
-                    }
-                    var data = WriteStream(Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand }));
-                    Array.Copy(data, 0, client.SocketAsyncEventArgs.Buffer, 0, data.Length);//设置发送数据
-                    _CallBacks.TryAdd(callBackCommand, callback);
+                        string callBackCommand = null;
+                        if (callback != null)
+                        {
+                            callBackCommand = $"CallBack_{command}_{QTools.RandomCode(5)}";
+                        }
+                        var data = WriteStream(Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand }));
+                        Array.Copy(data, 0, client.SocketAsyncEventArgs.Buffer, 0, data.Length);//设置发送数据
+                        _CallBacks.TryAdd(callBackCommand, callback);
 
-                    if (!client.Socket.SendAsync(client.SocketAsyncEventArgs))//投递发送请求，这个函数有可能同步发送出去，这时返回false，并且不会引发SocketAsyncEventArgs.Completed事件
-                    {
-                        CloseClientSocket(client);
+                        SocketAsyncEventArgs sendArg = new SocketAsyncEventArgs();
+                        sendArg.SetBuffer(data, 0, data.Length);  //将数据放置进去.  
+                        client.Socket.SendAsync(sendArg);
                     }
+                    catch (Exception ex)
+                    {
+                        Error?.Invoke(ex);
+                    }
+
+
                 }
             }
         }
@@ -339,12 +441,11 @@ namespace Q.Lib.QSocket
                         resetEvent.Set();
                     });
 
-                    if (!client.Socket.SendAsync(client.SocketAsyncEventArgs))//投递发送请求，这个函数有可能同步发送出去，这时返回false，并且不会引发SocketAsyncEventArgs.Completed事件
-                    {
-                        CloseClientSocket(client);
-                        resetEvent.Set();
-                        return new AckItem(-1, "发送失败");
-                    }
+
+                    SocketAsyncEventArgs sendArg = new SocketAsyncEventArgs();
+                    sendArg.SetBuffer(data, 0, data.Length);  //将数据放置进去.  
+                    client.Socket.SendAsync(sendArg);
+
                     resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
                     return ack;
                 }
@@ -386,19 +487,32 @@ namespace Q.Lib.QSocket
         private void CloseClientSocket(ServerClient c)
         {
 
-            CloseClientSocket(c.Socket, c.SocketAsyncEventArgs);
+            lock (c)
+            {
+                if (c.Status == 0)
+                {
+                    return;
+                }
+                else
+                {
+                    c.Status = 0;
+                }
+            }
+
+            RemoveClient?.Invoke(c);
+            if (!string.IsNullOrEmpty(c.CrontabTaskID))
+            {
+                QCrontab.CancleTask(c.CrontabTaskID);
+                c.CrontabTaskID = null;
+            }
             lock (_Clients)
             {
                 _Clients.Remove(c);
-                RemoveClient?.Invoke(c);
-            }
-        }
 
-        private void CloseClientSocket(System.Net.Sockets.Socket socket, SocketAsyncEventArgs e)
-        {
+            }
             try
             {
-                socket.Shutdown(SocketShutdown.Send);
+                c.Socket.Shutdown(SocketShutdown.Send);
             }
             catch (Exception ex)
             {
@@ -406,11 +520,15 @@ namespace Q.Lib.QSocket
             }
             finally
             {
-                socket.Close();
+                c.Socket.Close();
             }
+
             Interlocked.Decrement(ref _CurrentClientCount);
             _maxAcceptedClients.Release();
+            _ServerClientPool.Push(c);
         }
+
+
         #endregion
 
         #region 资源释放

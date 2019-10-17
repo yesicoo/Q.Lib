@@ -15,6 +15,9 @@ namespace Q.Lib.QSocket
         public string ClientName { get; internal set; }
         public System.Net.Sockets.Socket Socket { get; internal set; }
         public SocketAsyncEventArgs SocketAsyncEventArgs { get; internal set; }
+        public List<byte> Buffer { get; set; } = new List<byte>();
+        public string CrontabTaskID { get; internal set; }
+        public int Status { get; internal set; }
 
         public void CallBack(string callBackCommand, AckItem ack)
         {
