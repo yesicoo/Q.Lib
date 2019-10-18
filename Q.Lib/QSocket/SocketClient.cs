@@ -185,7 +185,7 @@ namespace Q.Lib.QSocket
                             string msgStr = Encoding.UTF8.GetString(rev);
                             if (Log != null)
                             {
-                                Task.Run(() => { Log.Invoke("Receive", msgStr});
+                                Task.Run(() => { Log.Invoke("Receive", msgStr); }) ;
                             }
                             Task.Run(() =>
                             {
@@ -289,7 +289,7 @@ namespace Q.Lib.QSocket
             _ClientSocket.SendAsync(sendArgs);
             if (Log != null)
             {
-                Task.Run(() => { Log.Invoke("Send", str});
+                Task.Run(() => { Log.Invoke("Send", str); });
             }
         }
 
@@ -325,7 +325,7 @@ namespace Q.Lib.QSocket
                     _ClientSocket.SendAsync(sendArgs);
                     if (Log != null)
                     {
-                        Task.Run(() => { Log.Invoke("Send", sendStr});
+                        Task.Run(() => { Log.Invoke("Send", sendStr); });
                     }
                 }
                 else
@@ -371,7 +371,7 @@ namespace Q.Lib.QSocket
                     _ClientSocket.SendAsync(sendArgs);
                     if (Log != null)
                     {
-                        Task.Run(() => { Log.Invoke("Send", sendStr});
+                        Task.Run(() => { Log.Invoke("Send", sendStr); });
                     }
                     resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
                     return ack;
