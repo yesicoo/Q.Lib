@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Q.Lib.QSocket
 {
-   public class ServerClient:BaseSocket
+    public class ServerClient : BaseSocket
     {
         /// <summary>  
         /// 客户端IP地址  
@@ -41,6 +41,8 @@ namespace Q.Lib.QSocket
 
         public int Index { set; get; }
 
+        public Action<string, string> Log;
+
         /// <summary>  
         /// 数据缓存区  
         /// </summary>  
@@ -59,12 +61,17 @@ namespace Q.Lib.QSocket
         {
             if (!string.IsNullOrEmpty(callBackCommand))
             {
-                var data = WriteStream(Json.ToJsonStr(new { Command = callBackCommand, Data = ack }));
+                var datastr = Json.ToJsonStr(new { Command = callBackCommand, Data = ack });
+                var data = WriteStream(datastr);
 
                 SocketAsyncEventArgs sendArg = new SocketAsyncEventArgs();
                 sendArg.UserToken = this;
                 sendArg.SetBuffer(data, 0, data.Length);  //将数据放置进去.  
                 this.Socket.SendAsync(sendArg);
+                if (Log != null)
+                {
+                    Task.Run(() => { Log.Invoke("Send", $"[{ClientName}]{datastr}"); });
+                }
             }
         }
 

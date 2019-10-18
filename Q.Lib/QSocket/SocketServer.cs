@@ -49,7 +49,10 @@ namespace Q.Lib.QSocket
         /// 客户端移除
         /// </summary>
         public Action<ServerClient> RemoveClient;
-
+        /// <summary>
+        /// 交互日志
+        /// </summary>
+        public Action<string, string> Log;
 
         /// <summary>  
         /// 获取客户端列表  
@@ -214,6 +217,7 @@ namespace Q.Lib.QSocket
                 client.Remote = e.AcceptSocket.RemoteEndPoint;
                 client.IPAddress = ((IPEndPoint)(e.AcceptSocket.RemoteEndPoint)).Address;
                 client.Index = _ClientIndex;
+                client.Log = Log;
                 lock (_Clients) { _Clients.Add(client); }
 
 
@@ -300,6 +304,10 @@ namespace Q.Lib.QSocket
                             }
 
                             string msgStr = Encoding.UTF8.GetString(rev);
+                            if (Log != null)
+                            {
+                                Task.Run(() => { Log.Invoke("Receive", $"[{client.ClientName}]{msgStr}"); });
+                            }
                             Task.Run(() =>
                             {
                                 try
@@ -432,6 +440,10 @@ namespace Q.Lib.QSocket
                 sendArg.UserToken = client;
                 sendArg.SetBuffer(data, 0, data.Length);
                 client.Socket.SendAsync(sendArg);
+                if (Log != null)
+                {
+                    Task.Run(() => { Log.Invoke("Send", $"[{client.ClientName}]{str}"); });
+                }
             }
             catch (Exception ex)
             {
@@ -467,11 +479,16 @@ namespace Q.Lib.QSocket
                     callBackCommand = $"CallBack_{command}_{QTools.RandomCode(5)}";
                     _CallBacks.TryAdd(callBackCommand, callback);
                 }
-                var data = WriteStream(Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand }));
+                var datastr = Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand });
+                var data = WriteStream(datastr);
                 SocketAsyncEventArgs sendArg = new SocketAsyncEventArgs();
                 sendArg.UserToken = client;
                 sendArg.SetBuffer(data, 0, data.Length);
                 client.Socket.SendAsync(sendArg);
+                if (Log != null)
+                {
+                    Task.Run(() => { Log.Invoke("Send", $"[{client.ClientName}]{datastr}"); });
+                }
             }
             catch (Exception ex)
             {
@@ -510,7 +527,8 @@ namespace Q.Lib.QSocket
                 ManualResetEvent resetEvent = new ManualResetEvent(false);
                 string callBackCommand = $"CallBack_{command}_{QTools.RandomCode(5)}";
 
-                var data = WriteStream(Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand }));
+                var datastr = Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand });
+                var data = WriteStream(datastr);
                 _CallBacks.TryAdd(callBackCommand, (a) =>
                 {
                     ack = a;
@@ -521,6 +539,10 @@ namespace Q.Lib.QSocket
                 sendArg.UserToken = client;
                 sendArg.SetBuffer(data, 0, data.Length);
                 client.Socket.SendAsync(sendArg);
+                if (Log != null)
+                {
+                    Task.Run(() => { Log.Invoke("Send", $"[{client.ClientName}]{datastr}"); });
+                }
 
                 resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
                 return ack;
