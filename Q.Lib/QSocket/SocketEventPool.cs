@@ -7,17 +7,17 @@ using System.Threading.Tasks;
 
 namespace Q.Lib.QSocket
 {
-    class ServerClientPool
+    class SocketEventPool
     {
-        Stack<ServerClient> m_pool;
+        Stack<SocketAsyncEventArgs> m_pool;
 
 
-        public ServerClientPool(int capacity)
+        public SocketEventPool(int capacity)
         {
-            m_pool = new Stack<ServerClient>(capacity);
+            m_pool = new Stack<SocketAsyncEventArgs>(capacity);
         }
 
-        public void Push(ServerClient item)
+        public void Push(SocketAsyncEventArgs item)
         {
             if (item == null) { throw new ArgumentNullException("Items added to a SocketAsyncEventArgsPool cannot be null"); }
             lock (m_pool)
@@ -28,7 +28,7 @@ namespace Q.Lib.QSocket
 
         // Removes a SocketAsyncEventArgs instance from the pool  
         // and returns the object removed from the pool  
-        public ServerClient Pop()
+        public SocketAsyncEventArgs Pop()
         {
             lock (m_pool)
             {

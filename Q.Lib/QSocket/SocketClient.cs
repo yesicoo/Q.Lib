@@ -4,7 +4,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -14,82 +13,347 @@ using System.Threading.Tasks;
 
 namespace Q.Lib.QSocket
 {
-    public class SocketClient : BaseSocket
+    public class SocketClient : BaseSocket, IDisposable
     {
-        private TcpClient _Client;
-        private int port;
-        private IPAddress remote;
 
-        /// <summary>
-        /// 终端注册完成
-        /// </summary>
-        public Action<SocketClient> Registed;
-        /// <summary>
-        /// 终端连接成功
-        /// </summary>
-        public Action<SocketClient> Connected;
-        /// <summary>
-        /// 终端连接关闭
-        /// </summary>
-        public Action<SocketClient> Closed;
-        /// <summary>
-        /// 出错
-        /// </summary>
-        public Action<Exception> Error;
 
-        public bool IsRuning = false;
+        private Socket _ClientSocket;
+        private IPEndPoint _HostEndPoint;
 
+        private BufferManager _BufferManager;
+        public string _ClientName;
+        public List<byte> _Buffer;
+        public int _TagCount = 0;
+        private const int _BuffSize = 1024;
+        private bool _Connected = false;
+        private static AutoResetEvent _AutoConnectEvent = new AutoResetEvent(false);
+        private List<QSocketEventArgs> _ListArgs = new List<QSocketEventArgs>();
+        private QSocketEventArgs _ReceiveEventArgs = new QSocketEventArgs();
         private ConcurrentDictionary<string, Action<SocketClient, SocketMsg>> _Commands = new ConcurrentDictionary<string, Action<SocketClient, SocketMsg>>();
-
         private ConcurrentDictionary<string, Action<AckItem>> _CallBacks = new ConcurrentDictionary<string, Action<AckItem>>();
 
-        string CrontabTaskID = null;
-        public SocketClient(string address, int port)
+        //对外委托方法
+        public Action<Exception> Error;
+        public Action<SocketClient> Closed;
+        public Action<SocketClient> Registed;
+
+        /// <summary>  
+        /// 当前连接状态  
+        /// </summary>  
+        public bool Connected { get { return _ClientSocket != null && _ClientSocket.Connected; } }
+
+        //初始化
+        public SocketClient(string ip, int port)
         {
-            this.remote = IPAddress.Parse(address);
-            this.port = port;
+            // Instantiates the endpoint and socket.  
+            _HostEndPoint = new IPEndPoint(IPAddress.Parse(ip), port);
+            _ClientSocket = new System.Net.Sockets.Socket(_HostEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            _BufferManager = new BufferManager(_BuffSize * 2, _BuffSize);
+            _Buffer = new List<byte>();
         }
-        public SocketClient(IPAddress remote, int port)
+
+        /// <summary>  
+        /// 连接到主机  
+        /// </summary>  
+        /// <returns>0.连接成功, 其他值失败,参考SocketError的值列表</returns>  
+        public SocketError Connect(string clientName)
         {
+            _ClientName = clientName;
+            SocketAsyncEventArgs connectArgs = new SocketAsyncEventArgs();
+            connectArgs.UserToken = _ClientSocket;
+            connectArgs.RemoteEndPoint = _HostEndPoint;
+            connectArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnConnect);
 
-            this.port = port;
-            this.remote = remote;
+            _ClientSocket.ConnectAsync(connectArgs);
+            _AutoConnectEvent.WaitOne();
+            RegistClient(clientName);
+            return connectArgs.SocketError;
         }
 
+        private void OnConnect(object sender, SocketAsyncEventArgs e)
+        {
+            _AutoConnectEvent.Set(); //释放阻塞.  
+            _Connected = (e.SocketError == SocketError.Success);
+            if (_Connected)
+            {
+                _BufferManager.InitBuffer();
+                //发送参数  
+                InitSendArgs();
+                //接收参数  
+                _ReceiveEventArgs.Completed += new EventHandler<SocketAsyncEventArgs>(IO_Completed);
+                _ReceiveEventArgs.UserToken = e.UserToken;
+                _ReceiveEventArgs.ArgsTag = 0;
+                _BufferManager.SetBuffer(_ReceiveEventArgs);
 
+                //启动接收,不管有没有,一定得启动.否则有数据来了也不知道.  
+                if (!e.ConnectSocket.ReceiveAsync(_ReceiveEventArgs))
+                    ProcessReceive(_ReceiveEventArgs);
+            }
 
-        public void Connect(string serverName)
+        }
+
+        private QSocketEventArgs InitSendArgs()
+        {
+            QSocketEventArgs sendArg = new QSocketEventArgs();
+            sendArg.Completed += new EventHandler<SocketAsyncEventArgs>(IO_Completed);
+            sendArg.UserToken = _ClientSocket;
+            sendArg.RemoteEndPoint = _HostEndPoint;
+            sendArg.IsUsing = false;
+            Interlocked.Increment(ref _TagCount);
+            sendArg.ArgsTag = _TagCount;
+            lock (_ListArgs)
+            {
+                _ListArgs.Add(sendArg);
+            }
+            return sendArg;
+        }
+
+        private void IO_Completed(object sender, SocketAsyncEventArgs e)
+        {
+            QSocketEventArgs mys = (QSocketEventArgs)e;
+            // determine which type of operation just completed and call the associated handler  
+            switch (e.LastOperation)
+            {
+                case SocketAsyncOperation.Receive:
+                    ProcessReceive(e);
+                    break;
+                case SocketAsyncOperation.Send:
+                    mys.IsUsing = false; //数据发送已完成.状态设为False  
+                    ProcessSend(e);
+                    break;
+                default:
+                    throw new ArgumentException("The last operation completed on the socket was not a receive or send");
+            }
+        }
+
+        private void ProcessReceive(SocketAsyncEventArgs e)
         {
             try
             {
-                if (_Client != null)
-                    Close();
-                _Client = new TcpClient();
+                // check if the remote host closed the connection  
+                System.Net.Sockets.Socket token = (System.Net.Sockets.Socket)e.UserToken;
+                if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
+                {
+                    byte[] data = new byte[e.BytesTransferred];
+                    Array.Copy(e.Buffer, e.Offset, data, 0, data.Length);//从e.Buffer块中复制数据出来，保证它可重用
+                    lock (_Buffer)
+                    {
+                        _Buffer.AddRange(data);
+                    }
 
-                _Client.Connect(remote, port);
-                Connected?.Invoke(this);
-                IsRuning = true;
-                Watch();
-                RegistClient(serverName);
 
+                    do
+                    {
+                        byte[] lenBytes = _Buffer.GetRange(0, 8).ToArray();
+                        string lengthStr = Encoding.UTF8.GetString(lenBytes, 0, lenBytes.Length);
+                        if (int.TryParse(lengthStr, NumberStyles.HexNumber, null, out var packageLen))
+                        {
+                            if (packageLen > _Buffer.Count)
+                            {   //长度不够时,退出循环,让程序继续接收  
+                                break;
+                            }
+                            byte[] rev = _Buffer.GetRange(8, packageLen - 8).ToArray();
+
+                            //移除
+                            lock (_Buffer)
+                            {
+                                _Buffer.RemoveRange(0, packageLen);
+                            }
+
+                            string msgStr = Encoding.UTF8.GetString(rev);
+                            Task.Run(() =>
+                            {
+                                try
+                                {
+                                    if (msgStr.StartsWith("Ping"))
+                                    {
+                                        //保活消息
+                                        SendStr("Pong");
+                                    }
+                                    else if (msgStr.StartsWith("Pong"))
+                                    {
+                                        //保活消息 丢弃
+                                    }
+                                    else if (msgStr.StartsWith("{"))
+                                    {
+                                        SocketMsg socketMsg = Json.ToObj<SocketMsg>(msgStr);
+
+                                        if (!string.IsNullOrEmpty(socketMsg.Command))
+                                        {
+                                            if (socketMsg.Command.StartsWith("CallBack_"))
+                                            {
+                                                //移除并取出调用
+                                                if (_CallBacks.TryRemove(socketMsg.Command, out var commandAction))
+                                                {
+                                                    commandAction.Invoke(Json.Convert2T<AckItem>(socketMsg.Data));
+                                                }
+                                                else
+                                                {
+                                                    QLog.SendLog_Debug("回调命令:" + socketMsg.Command + "不存在");
+                                                }
+                                            }
+                                            else if (_Commands.ContainsKey(socketMsg.Command))
+                                            {
+                                                _Commands[socketMsg.Command].Invoke(this, socketMsg);
+                                            }
+                                            else
+                                            {
+                                                QLog.SendLog_Debug("未识别命令:" + socketMsg.Command);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            QLog.SendLog_Debug("未找到命令:" + msgStr);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        QLog.SendLog_Debug("未识别消息:" + msgStr);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Error?.Invoke(ex);
+                                }
+                            });
+                        }
+                        else
+                        {
+                            lock (_Buffer)
+                            {
+                                //头部未包含长度信息，丢掉
+                                _Buffer.Clear();
+                                break;
+                            }
+                        }
+
+                    } while (_Buffer.Count > 8);
+
+                    if (!token.ReceiveAsync(e))//为接收下一段数据，投递接收请求，这个函数有可能同步完成，这时返回false，并且不会引发SocketAsyncEventArgs.Completed事件
+                    {
+                        //同步接收时处理接收完成事件
+                        ProcessReceive(e);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Error.Invoke(ex);
+            }
+        }
+
+        private void SendStr(string str)
+        {
+            var sendData = WriteStream(str);
+            QSocketEventArgs sendArgs = _ListArgs.Find(a => a.IsUsing == false);
+
+            if (sendArgs == null)
+            {
+                sendArgs = InitSendArgs();
+            }
+            lock (sendArgs)
+            {
+                sendArgs.IsUsing = true;
+                sendArgs.SetBuffer(sendData, 0, sendData.Length);
+            }
+            _ClientSocket.SendAsync(sendArgs);
+        }
+
+
+        public void SendAsync(string command, object param, Action<AckItem> callBack = null)
+        {
+            try
+            {
+                if (_Connected)
+                {
+                    string callBackCommand = null;
+                    if (callBack != null)
+                    {
+                        callBackCommand = $"CallBack_{command}_{QTools.RandomCode(5)}";
+                        _CallBacks.TryAdd(callBackCommand, callBack);
+                    }
+
+                    var sendData = WriteStream(Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand }));
+
+                    QSocketEventArgs sendArgs = _ListArgs.Find(a => a.IsUsing == false);
+
+                    if (sendArgs == null)
+                    {
+                        sendArgs = InitSendArgs();
+                    }
+                    lock (sendArgs)
+                    {
+                        sendArgs.IsUsing = true;
+                        sendArgs.SetBuffer(sendData, 0, sendData.Length);
+                    }
+                    _ClientSocket.SendAsync(sendArgs);
+
+                }
+                else
+                {
+                    Error?.Invoke(new SocketException((int)SocketError.NotConnected));
+                }
             }
             catch (Exception ex)
             {
                 Error?.Invoke(ex);
-                IsRuning = false;
             }
         }
 
-        void RegistClient(string clientName)
+        public AckItem SendSync(string command, object param, int timeOut = 30)
         {
-           var ack = SendSync("Sys_Regist", new { ClientName = clientName });
+            try
+            {
+                AckItem ack = new AckItem(-1, "客户端未连接");
+                if (_Connected)
+                {
+                    ack = new AckItem(-1, "请求超时");
+                    ManualResetEvent resetEvent = new ManualResetEvent(false);
+                    string callBackCommand = $"CallBack_{command}_{QTools.RandomCode(5)}";
+                    var sendData = WriteStream(Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand }));
+                    QSocketEventArgs sendArgs = _ListArgs.Find(a => a.IsUsing == false);
+
+                    if (sendArgs == null)
+                    {
+                        sendArgs = InitSendArgs();
+                    }
+                    lock (sendArgs)
+                    {
+                        sendArgs.IsUsing = true;
+                        sendArgs.SetBuffer(sendData, 0, sendData.Length);
+                    }
+                    _CallBacks.TryAdd(callBackCommand, (r) =>
+                    {
+
+                        ack = r;
+                        resetEvent.Set();
+                    });
+                    _ClientSocket.SendAsync(sendArgs);
+                    resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
+                    return ack;
+                }
+                else
+                {
+                    Error?.Invoke(new SocketException((int)SocketError.NotConnected));
+                }
+                return ack;
+            }
+            catch (Exception ex)
+            {
+                Error?.Invoke(ex);
+                return new AckItem(-1, ex.Message);
+            }
+        }
+
+
+        private void RegistClient(string clientName)
+        {
+            var ack = SendSync("Sys_Regist", new { ClientName = clientName });
             if (ack.ResCode == 0)
             {
                 Registed?.Invoke(this);
             }
         }
-       
-
         public bool RegistAction(string actionKey, Action<SocketClient, SocketMsg> action)
         {
             if (string.IsNullOrEmpty(actionKey) || action == null)
@@ -110,184 +374,71 @@ namespace Q.Lib.QSocket
             }
         }
 
-
-        public void SendAsync(string command, object param, Action<AckItem> callBack=null)
+        private void ProcessSend(SocketAsyncEventArgs e)
         {
-            try
+            if (e.SocketError != SocketError.Success)
             {
-                if (IsRuning)
+                ProcessError(e);
+            }
+        }
+        private void ProcessError(SocketAsyncEventArgs e)
+        {
+            System.Net.Sockets.Socket s = (System.Net.Sockets.Socket)e.UserToken;
+            if (s.Connected)
+            {
+                // close the socket associated with the client  
+                try
                 {
-                    string callBackCommand = null;
-                    if (callBack != null)
+                    s.Shutdown(SocketShutdown.Both);
+                }
+                catch (Exception)
+                {
+                    // throws if client process has already closed  
+                }
+                finally
+                {
+                    if (s.Connected)
                     {
-                        callBackCommand = $"CallBack_{command}_{QTools.RandomCode(5)}";
+                        s.Close();
                     }
-
-                    var sendData = WriteStream(Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand }));
-                    _Client.GetStream().Write(sendData, 0, sendData.Length);
-                    _CallBacks.TryAdd(callBackCommand, callBack);
+                    _Connected = false;
                 }
             }
-            catch (Exception ex)
-            {
-                Error?.Invoke(ex);
-                Close();
-            }
+            //这里一定要记得把事件移走,如果不移走,当断开服务器后再次连接上,会造成多次事件触发.  
+            foreach (QSocketEventArgs arg in _ListArgs)
+                arg.Completed -= IO_Completed;
+            _ReceiveEventArgs.Completed -= IO_Completed;
+
+            Closed?.Invoke(this);
         }
 
-        public AckItem SendSync(string command, object param, int timeOut = 30)
+        /// Disconnect from the host.  
+        internal void Disconnect()
         {
-            try
-            {
-                AckItem ack = new AckItem(-1, "客户端未连接");
-                if (IsRuning)
-                {
-                    ack = new AckItem(-1, "请求超时");
-                    ManualResetEvent resetEvent = new ManualResetEvent(false);
-                    string callBackCommand = $"CallBack_{command}_{QTools.RandomCode(5)}";
-                    var sendData = WriteStream(Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand }));
-                    _Client.GetStream().Write(sendData, 0, sendData.Length);
-                    _CallBacks.TryAdd(callBackCommand, (r) =>
-                    {
-
-                        ack = r;
-                        resetEvent.Set();
-                    });
-                    resetEvent.WaitOne(TimeSpan.FromSeconds(timeOut));
-                    return ack;
-                }
-                return ack;
-            }
-            catch (Exception ex)
-            {
-                Error?.Invoke(ex);
-                Close();
-                return new AckItem(-1, ex.Message);
-            }
+            _ClientSocket.Disconnect(false);
+            Closed?.Invoke(this);
         }
-
-        private void Watch()
-        {
-            Task.Run(() =>
-            {
-                while (IsRuning)
-                {
-                    NetworkStream ns = this._Client.GetStream();
-                    ns.ReadTimeout = 1000 * 30;
-                    if (ns.DataAvailable)
-                    {
-                        string dataStr = ReadStream(ns);
-                        if (dataStr.StartsWith("Ping"))
-                        {
-                            var returnData = WriteStream("Pong");
-                            ns.Write(returnData, 0, returnData.Length);
-                        }
-                        else if (dataStr.StartsWith("{"))
-                        {
-                            SocketMsg socketMsg = Json.ToObj<SocketMsg>(dataStr);
-
-                            if (!string.IsNullOrEmpty(socketMsg.Command))
-                            {
-                                if (socketMsg.Command.StartsWith("CallBack_"))
-                                {
-                                    //移除并取出调用
-                                    if (_CallBacks.TryRemove(socketMsg.Command, out var commandAction))
-                                    {
-                                        commandAction.Invoke(Json.Convert2T<AckItem>(socketMsg.Data));
-                                    }
-                                    else
-                                    {
-                                        QLog.SendLog_Debug("回调命令:" + socketMsg.Command + "不存在");
-                                    }
-                                }
-                                else if (_Commands.ContainsKey(socketMsg.Command))
-                                {
-                                    _Commands[socketMsg.Command].Invoke(this, socketMsg);
-                                }
-                                else
-                                {
-                                    QLog.SendLog_Debug("未识别命令:" + socketMsg.Command);
-                                }
-                            }
-                            else
-                            {
-                                QLog.SendLog_Debug("未找到命令:" + dataStr);
-                            }
-                        }
-                        else
-                        {
-                            QLog.SendLog("未知消息:" + dataStr);
-                        }
-                    }
-                }
-            });
-        }
-
-
-        public void Close()
-        {
-            try
-            {
-                _Client.Close();
-#if NET45
-    //不支持
-#else
-                _Client.Dispose();
-#endif
-            }
-            finally
-            {
-                _Client = null;
-                IsRuning = false;
-                QCrontab.CancleTask(CrontabTaskID);
-                CrontabTaskID = null;
-                Closed?.Invoke(this);
-            }
-        }
-
-        private void KeepLive()
-        {
-            CrontabTaskID = QCrontab.RunWithSecond(20, () =>
-             {
-                 if (IsRuning)
-                 {
-                     if (_Client.Connected)
-                     {
-                         try
-                         {
-                             var pingData = WriteStream("Ping");
-                             _Client.GetStream().Write(pingData, 0, pingData.Length);
-                         }
-                         catch (Exception ex)
-                         {
-                             Error.Invoke(ex);
-                             Close();
-                         }
-                     }
-                     else
-                     {
-                         Close();
-                     }
-                 }
-                 else
-                 {
-                     QCrontab.CancleTask(CrontabTaskID);
-                 }
-             }, "KeepLive");
-        }
-
-
         public void ReturnOK(string callBackCommand)
         {
             this.SendAsync(callBackCommand, new AckItem());
         }
-        public void Return(string callBackCommand,object data)
+        public void Return(string callBackCommand, object data)
         {
             this.SendAsync(callBackCommand, new AckItem(data));
         }
         public void ReturnError(string callBackCommand, string errMsg)
         {
-            this.SendAsync(callBackCommand, new AckItem(-1,errMsg));
+            this.SendAsync(callBackCommand, new AckItem(-1, errMsg));
+        }
+
+
+        public void Dispose()
+        {
+            _AutoConnectEvent.Close();
+            if (_ClientSocket.Connected)
+            {
+                _ClientSocket.Close();
+            }
         }
     }
 }
