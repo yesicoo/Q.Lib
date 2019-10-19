@@ -40,7 +40,7 @@ namespace Q.Lib.QSocket
         public Action<SocketClient> Registed;
         public Action<string, string> Log;
 
-        public string keepliveCode="";
+        public string _keepliveCode="";
 
         /// <summary>  
         /// 当前连接状态  
@@ -82,11 +82,11 @@ namespace Q.Lib.QSocket
                     while (_Connected)
                     {
                         Thread.Sleep(5000);
-                        lock (keepliveCode)
+                        lock (_keepliveCode)
                         {
-                            if (keepliveCode == "")
+                            if (_keepliveCode == "")
                             {
-                                keepliveCode = QTools.RandomCode(5);
+                                _keepliveCode = QTools.RandomCode(5);
                             }
                             else
                             {
@@ -94,7 +94,7 @@ namespace Q.Lib.QSocket
                                 break;
                             }
                         }
-                        SendStr("Ping" + keepliveCode);
+                        SendStr("Ping" + _keepliveCode);
                     }
                 });
             }
@@ -228,11 +228,11 @@ namespace Q.Lib.QSocket
                                     else if (msgStr.StartsWith("Pong"))
                                     {
                                         string pongCode = msgStr.Substring(4);
-                                        lock (keepliveCode)
+                                        lock (_keepliveCode)
                                         {
-                                            if (keepliveCode == pongCode)
+                                            if (_keepliveCode == pongCode)
                                             {
-                                                keepliveCode = "";
+                                                _keepliveCode = "";
                                             }
                                         }
                                     }
@@ -506,7 +506,7 @@ namespace Q.Lib.QSocket
 
             _ListArgs.Clear();
             _ReceiveEventArgs.Completed -= IO_Completed;
-
+            _keepliveCode = "";
             _Connected = false;
             if (_ClientSocket.Connected)
             {
