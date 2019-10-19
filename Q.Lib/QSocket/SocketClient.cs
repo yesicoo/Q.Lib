@@ -87,6 +87,7 @@ namespace Q.Lib.QSocket
                             if (_keepliveCode == "")
                             {
                                 _keepliveCode = QTools.RandomCode(5);
+                                SendStr("Ping" + _keepliveCode);
                             }
                             else
                             {
@@ -94,7 +95,7 @@ namespace Q.Lib.QSocket
                                 break;
                             }
                         }
-                        SendStr("Ping" + _keepliveCode);
+                       
                     }
                 });
             }
