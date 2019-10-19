@@ -26,8 +26,10 @@ namespace Q.Lib.QSocket
         private const int _OpsToAlloc = 2;
         private int _MaxConnectNum = 200;    //最大连接数  
         private int _RevBufferSize = 1024;    //最大接收字节数  
+        private bool _keepliveToClient = false;
         private ConcurrentDictionary<string, Action<ServerClient, SocketMsg>> _Commands = new ConcurrentDictionary<string, Action<ServerClient, SocketMsg>>();
         private ConcurrentDictionary<string, Action<AckItem>> _CallBacks = new ConcurrentDictionary<string, Action<AckItem>>();
+        private ConcurrentDictionary<ServerClient, string> _KeepliveCodes = new ConcurrentDictionary<ServerClient, string>();
 
         /// <summary>
         /// 异常回调
@@ -87,18 +89,51 @@ namespace Q.Lib.QSocket
         /// <summary>  
         /// 启动服务  
         /// </summary>  
-        public bool Start(int port)
+        public bool Start(int port, bool keepliveToClient = false)
         {
             try
             {
+                _keepliveToClient = keepliveToClient;
                 IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Any, port);
                 _Clients.Clear();
+                _KeepliveCodes.Clear();
                 _ListenSocket = new Socket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                 _ListenSocket.Bind(localEndPoint);
                 _ListenSocket.Listen(_MaxConnectNum);
                 _Commands.TryAdd("Sys_Regist", _RegistClient);// 系统客户端注册
                 StartAccept(null);
                 StartOver?.Invoke();
+                if (_keepliveToClient)
+                {
+                    Task.Run(() =>
+                    {
+                        do
+                        {
+                            Thread.Sleep(5000);
+                            try
+                            {
+                                var keeplivefail = _KeepliveCodes.Where(x => x.Value == "").Select(x => x.Key);
+                                foreach (var item in keeplivefail)
+                                {
+                                    CloseClient(item);
+                                }
+                                var keeplivesuccess = _KeepliveCodes.Where(x => !keeplivefail.Contains(x.Key));
+
+                                foreach (var item in keeplivesuccess)
+                                {
+
+                                    _KeepliveCodes[item.Key] = QTools.RandomCode(5);
+
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Error?.Invoke(ex);
+                            }
+
+                        } while (_ListenSocket.Connected);
+                    });
+                }
                 return true;
             }
             catch (Exception ex)
@@ -147,7 +182,8 @@ namespace Q.Lib.QSocket
 
             _ListenSocket.Close();
             int c_count = _Clients.Count;
-            lock (_Clients) { _Clients.Clear(); }
+            _keepliveToClient = false;
+            lock (_Clients) { _Clients.Clear(); _KeepliveCodes.Clear(); }
 
 
 
@@ -218,7 +254,7 @@ namespace Q.Lib.QSocket
                 client.IPAddress = ((IPEndPoint)(e.AcceptSocket.RemoteEndPoint)).Address;
                 client.Index = _ClientIndex;
                 client.Log = Log;
-                lock (_Clients) { _Clients.Add(client); }
+                lock (_Clients) { _Clients.Add(client); _KeepliveCodes.TryAdd(client, ""); }
 
 
                 NewClient?.Invoke(client);
@@ -306,9 +342,11 @@ namespace Q.Lib.QSocket
                             string msgStr = Encoding.UTF8.GetString(rev);
                             if (Log != null)
                             {
-                                Task.Run(() => { 
-                                    
-                                    if (msgStr.StartsWith("Ping")){ 
+                                Task.Run(() =>
+                                {
+
+                                    if (msgStr.StartsWith("Ping"))
+                                    {
                                         Log.Invoke("Receive_Ping", $"[{client.ClientName}]{msgStr}");
                                     }
                                     else
@@ -324,11 +362,21 @@ namespace Q.Lib.QSocket
                                     if (msgStr.StartsWith("Ping"))
                                     {
                                         //保活消息
-                                        SendStr(client, "Pong");
+                                        SendStr(client, "Pong" + msgStr.Substring(4));
                                     }
                                     else if (msgStr.StartsWith("Pong"))
                                     {
-                                        //保活消息 丢弃
+                                        if (_KeepliveCodes.TryGetValue(client, out var keepliveCode))
+                                        {
+                                            string pongCode = msgStr.Substring(4);
+                                            lock (keepliveCode)
+                                            {
+                                                if (keepliveCode == pongCode)
+                                                {
+                                                    _KeepliveCodes[client] = "";
+                                                }
+                                            }
+                                        }
                                     }
                                     else if (msgStr.StartsWith("{"))
                                     {
@@ -423,7 +471,7 @@ namespace Q.Lib.QSocket
         {
             ServerClient client = e.UserToken as ServerClient;
 
-            lock (_Clients) { _Clients.Remove(client); }
+            lock (_Clients) { _Clients.Remove(client); _KeepliveCodes.TryRemove(client, out var value); }
             //如果有事件,则调用事件,发送客户端数量变化通知  
             RemoveClient?.Invoke(client);
             try
@@ -451,7 +499,7 @@ namespace Q.Lib.QSocket
                 client.Socket.SendAsync(sendArg);
                 if (Log != null)
                 {
-                    if (str == "Pong")
+                    if (str.StartsWith("Pong"))
                     {
                         Task.Run(() => { Log.Invoke("Send_Pong", str); });
                     }

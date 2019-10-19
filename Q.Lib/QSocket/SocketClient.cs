@@ -40,6 +40,8 @@ namespace Q.Lib.QSocket
         public Action<SocketClient> Registed;
         public Action<string, string> Log;
 
+        public string keepliveCode="";
+
         /// <summary>  
         /// 当前连接状态  
         /// </summary>  
@@ -80,7 +82,19 @@ namespace Q.Lib.QSocket
                     while (_Connected)
                     {
                         Thread.Sleep(5000);
-                        SendStr("Ping");
+                        lock (keepliveCode)
+                        {
+                            if (keepliveCode == "")
+                            {
+                                keepliveCode = QTools.RandomCode(5);
+                            }
+                            else
+                            {
+                                Disconnect();
+                                break;
+                            }
+                        }
+                        SendStr("Ping" + keepliveCode);
                     }
                 });
             }
@@ -185,7 +199,8 @@ namespace Q.Lib.QSocket
                             string msgStr = Encoding.UTF8.GetString(rev);
                             if (Log != null)
                             {
-                                Task.Run(() => {
+                                Task.Run(() =>
+                                {
 
                                     if (msgStr.StartsWith("Ping"))
                                     {
@@ -204,11 +219,18 @@ namespace Q.Lib.QSocket
                                     if (msgStr.StartsWith("Ping"))
                                     {
                                         //保活消息
-                                        SendStr("Pong");
+                                        SendStr("Pong"+ msgStr.Substring(4));
                                     }
                                     else if (msgStr.StartsWith("Pong"))
                                     {
-                                        //保活消息 丢弃
+                                        string pongCode = msgStr.Substring(4);
+                                        lock (keepliveCode)
+                                        {
+                                            if (keepliveCode == pongCode)
+                                            {
+                                                keepliveCode = "";
+                                            }
+                                        }
                                     }
                                     else if (msgStr.StartsWith("{"))
                                     {
@@ -299,7 +321,7 @@ namespace Q.Lib.QSocket
             _ClientSocket.SendAsync(sendArgs);
             if (Log != null)
             {
-                if (str == "Pong")
+                if (str.StartsWith("Pong"))
                 {
                     Task.Run(() => { Log.Invoke("Send_Pong", str); });
                 }
@@ -337,7 +359,7 @@ namespace Q.Lib.QSocket
                     {
                         sendArgs.IsUsing = true;
                         sendArgs.SetBuffer(sendData, 0, sendData.Length);
-                        
+
                     }
                     _ClientSocket.SendAsync(sendArgs);
                     if (Log != null)
