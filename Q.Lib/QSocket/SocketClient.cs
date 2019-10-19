@@ -185,7 +185,17 @@ namespace Q.Lib.QSocket
                             string msgStr = Encoding.UTF8.GetString(rev);
                             if (Log != null)
                             {
-                                Task.Run(() => { Log.Invoke("Receive", msgStr); }) ;
+                                Task.Run(() => {
+
+                                    if (msgStr.StartsWith("Ping"))
+                                    {
+                                        Log.Invoke("Receive_Ping", msgStr);
+                                    }
+                                    else
+                                    {
+                                        Log.Invoke("Receive", msgStr);
+                                    }
+                                });
                             }
                             Task.Run(() =>
                             {
@@ -289,7 +299,14 @@ namespace Q.Lib.QSocket
             _ClientSocket.SendAsync(sendArgs);
             if (Log != null)
             {
-                Task.Run(() => { Log.Invoke("Send", str); });
+                if (str == "Pong")
+                {
+                    Task.Run(() => { Log.Invoke("Send_Pong", str); });
+                }
+                else
+                {
+                    Task.Run(() => { Log.Invoke("Send", str); });
+                }
             }
         }
 

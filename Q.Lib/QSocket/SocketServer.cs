@@ -306,7 +306,16 @@ namespace Q.Lib.QSocket
                             string msgStr = Encoding.UTF8.GetString(rev);
                             if (Log != null)
                             {
-                                Task.Run(() => { Log.Invoke("Receive", $"[{client.ClientName}]{msgStr}"); });
+                                Task.Run(() => { 
+                                    
+                                    if (msgStr.StartsWith("Ping")){ 
+                                        Log.Invoke("Receive_Ping", $"[{client.ClientName}]{msgStr}");
+                                    }
+                                    else
+                                    {
+                                        Log.Invoke("Receive", $"[{client.ClientName}]{msgStr}");
+                                    }
+                                });
                             }
                             Task.Run(() =>
                             {
@@ -442,7 +451,14 @@ namespace Q.Lib.QSocket
                 client.Socket.SendAsync(sendArg);
                 if (Log != null)
                 {
-                    Task.Run(() => { Log.Invoke("Send", $"[{client.ClientName}]{str}"); });
+                    if (str == "Pong")
+                    {
+                        Task.Run(() => { Log.Invoke("Send_Pong", str); });
+                    }
+                    else
+                    {
+                        Task.Run(() => { Log.Invoke("Send", str); });
+                    }
                 }
             }
             catch (Exception ex)
