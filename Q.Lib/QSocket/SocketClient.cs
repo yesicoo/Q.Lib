@@ -77,11 +77,11 @@ namespace Q.Lib.QSocket
             RegistClient(clientName);
             if (_Keeplive)
             {
+                QLog.SendLog_Debug("Socket终端保活启动");
                 Task.Run(() =>
                 {
                     while (_Connected)
                     {
-                        Thread.Sleep(5000);
                         lock (_keepliveCode)
                         {
                             if (_keepliveCode == "")
@@ -95,7 +95,7 @@ namespace Q.Lib.QSocket
                                 break;
                             }
                         }
-                       
+                        Thread.Sleep(5000);
                     }
                 });
             }
