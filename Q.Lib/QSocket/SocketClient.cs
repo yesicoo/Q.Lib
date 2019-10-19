@@ -77,7 +77,7 @@ namespace Q.Lib.QSocket
             RegistClient(clientName);
             if (_Keeplive)
             {
-                QLog.SendLog_Debug("Socket终端保活启动");
+               
                 Task.Run(() =>
                 {
                     while (_Connected)
