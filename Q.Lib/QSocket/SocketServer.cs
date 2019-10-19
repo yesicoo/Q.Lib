@@ -349,6 +349,10 @@ namespace Q.Lib.QSocket
                                     {
                                         Log.Invoke("Receive_Ping", $"[{client.ClientName}]{msgStr}");
                                     }
+                                    else if (msgStr.StartsWith("Pong"))
+                                    {
+                                        Log.Invoke("Receive_Pong", $"[{client.ClientName}]{msgStr}");
+                                    }
                                     else
                                     {
                                         Log.Invoke("Receive", $"[{client.ClientName}]{msgStr}");
@@ -499,7 +503,11 @@ namespace Q.Lib.QSocket
                 client.Socket.SendAsync(sendArg);
                 if (Log != null)
                 {
-                    if (str.StartsWith("Pong"))
+                    if (str.StartsWith("Ping"))
+                    {
+                        Task.Run(() => { Log.Invoke("Send_Ping", str); });
+                    }
+                    else if(str.StartsWith("Pong"))
                     {
                         Task.Run(() => { Log.Invoke("Send_Pong", str); });
                     }
