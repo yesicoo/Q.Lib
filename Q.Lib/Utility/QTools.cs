@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -265,6 +266,35 @@ namespace Q.Lib
             else
             {
                 return EncryptHelper.Decrypt3DES(value, key);
+            }
+        }
+
+        /// <summary>
+        /// 程序运行超时检测方法
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="ms"></param>
+        /// <param name="func"></param>
+        /// <returns></returns>
+        internal static T TimeoutCheck<T>(int ms, Func<T> func)
+        {
+            var wait = new ManualResetEvent(false);
+            bool RunOK = false;
+            var taskResult = Task.Run<T>(() =>
+            {
+                var result = func.Invoke();
+                RunOK = true;
+                wait.Set();
+                return result;
+            });
+            wait.WaitOne(ms);
+            if (RunOK)
+            {
+                return taskResult.Result;
+            }
+            else
+            {
+                return default(T);
             }
         }
     }
