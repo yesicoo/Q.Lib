@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>NET45;NET46;NET472;netstandard2.0;netcoreapp2.2</TargetFrameworks>
+    <TargetFrameworks>NET46;NET472;netstandard2.0;netcoreapp2.2</TargetFrameworks>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>XuQing</Authors>
     <Company>XuQing</Company>
