@@ -3,10 +3,12 @@
   <PropertyGroup>
     <TargetFrameworks>NET46;NET472;netstandard2.0;netcoreapp2.2</TargetFrameworks>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Authors>XuQing</Authors>
     <Company>XuQing</Company>
     <PackageReleaseNotes>一款常用工具合集，简单的socket服务客户端，日志记录，数据转换等</PackageReleaseNotes>
-    <Version>1.0.5.11</Version>
+    <Version>1.0.5.12</Version>
     <Description>新增 Tools.TimeoutCheck 方法运行超时检测处理方法</Description>
   </PropertyGroup>
   <ItemGroup>
