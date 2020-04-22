@@ -77,16 +77,25 @@ namespace Q.Lib.QSocket
 
         public void Return(string command, object obj)
         {
-            CallBack(command, new AckItem(obj));
+            if (!string.IsNullOrEmpty(command))
+            {
+                CallBack(command, new AckItem(obj));
+            }
         }
         public void ReturnOK(string command)
         {
-            CallBack(command, new AckItem());
+            if (!string.IsNullOrEmpty(command))
+            {
+                CallBack(command, new AckItem());
+            }
         }
 
         public void ReturnError(string command, string resDesc)
         {
-            CallBack(command, new AckItem(-1, resDesc));
+            if (!string.IsNullOrEmpty(command))
+            {
+                CallBack(command, new AckItem(-1, resDesc));
+            }
         }
     }
 }

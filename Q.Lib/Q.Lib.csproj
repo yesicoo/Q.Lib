@@ -8,8 +8,8 @@
     <Authors>XuQing</Authors>
     <Company>XuQing</Company>
     <PackageReleaseNotes>一款常用工具合集，简单的socket服务客户端，日志记录，数据转换等</PackageReleaseNotes>
-    <Version>1.0.5.14</Version>
-    <Description>测试-无用的更新</Description>
+    <Version>1.0.5.15</Version>
+    <Description>修复Socket忽略返回时任然发送空指令的bug</Description>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />

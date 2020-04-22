@@ -521,15 +521,24 @@ namespace Q.Lib.QSocket
         }
         public void ReturnOK(string callBackCommand)
         {
-            this.SendAsync(callBackCommand, new AckItem());
+            if (!string.IsNullOrEmpty(callBackCommand))
+            {
+                this.SendAsync(callBackCommand, new AckItem());
+            }
         }
         public void Return(string callBackCommand, object data)
         {
-            this.SendAsync(callBackCommand, new AckItem(data));
+            if (!string.IsNullOrEmpty(callBackCommand))
+            {
+                this.SendAsync(callBackCommand, new AckItem(data));
+            }
         }
         public void ReturnError(string callBackCommand, string errMsg)
         {
-            this.SendAsync(callBackCommand, new AckItem(-1, errMsg));
+            if (!string.IsNullOrEmpty(callBackCommand))
+            {
+                this.SendAsync(callBackCommand, new AckItem(-1, errMsg));
+            }
         }
 
 
