@@ -8,7 +8,12 @@ namespace Q.Lib.Extension
 {
    public static class DateTime_
     {
-        public static string ToString(this DateTime dateTime)
+        /// <summary>
+        /// yyyy-MM-dd HH:mm:ss
+        /// </summary>
+        /// <param name="dateTime"></param>
+        /// <returns></returns>
+        public static string ToStr(this DateTime dateTime)
         {
             return dateTime.ToString("yyyy-MM-dd HH:mm:ss");
         }
