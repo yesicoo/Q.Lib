@@ -20,5 +20,6 @@ namespace Q.Lib.QSocket
         /// </summary>  
         public bool IsUsing { get; set; }
 
+        public DateTime CanUsingTime { get; set; } = DateTime.Now.AddSeconds(30);
     }
 }

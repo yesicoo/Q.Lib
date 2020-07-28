@@ -33,6 +33,7 @@ namespace Q.Lib.QSocket
         private QSocketEventArgs _ReceiveEventArgs = new QSocketEventArgs();
         private ConcurrentDictionary<string, Action<SocketClient, SocketMsg>> _Commands = new ConcurrentDictionary<string, Action<SocketClient, SocketMsg>>();
         private ConcurrentDictionary<string, Action<AckItem>> _CallBacks = new ConcurrentDictionary<string, Action<AckItem>>();
+        private Timer timer;
 
         //对外委托方法
         public Action<Exception> Error;
@@ -40,7 +41,7 @@ namespace Q.Lib.QSocket
         public Action<SocketClient> Registed;
         public Action<string, string> Log;
 
-        public string _keepliveCode="";
+        public string _keepliveCode = "";
 
         /// <summary>  
         /// 当前连接状态  
@@ -57,6 +58,18 @@ namespace Q.Lib.QSocket
             _Buffer = new List<byte>();
             _Keeplive = keeplive;
             _Reconnect = reconnect;
+
+            timer= new Timer((e) =>
+            {
+                int count = _ListArgs.Count;
+                lock (_ListArgs)
+                {
+                    _ListArgs.RemoveAll(x => x.CanUsingTime < DateTime.Now.AddMinutes(-5));
+                }
+                int ncount = _ListArgs.Count;
+                Log.Invoke("SocketDebug", "原:" + count+" 现:"+ ncount);
+
+            }, null, 280000, 60000);
         }
 
         /// <summary>  
@@ -77,7 +90,7 @@ namespace Q.Lib.QSocket
             RegistClient(clientName);
             if (_Keeplive)
             {
-               
+
                 Task.Run(() =>
                 {
                     while (_Connected)
@@ -135,12 +148,12 @@ namespace Q.Lib.QSocket
             sendArg.Completed += new EventHandler<SocketAsyncEventArgs>(IO_Completed);
             sendArg.UserToken = _ClientSocket;
             sendArg.RemoteEndPoint = _HostEndPoint;
-            sendArg.IsUsing = false;
             Interlocked.Increment(ref _TagCount);
             sendArg.ArgsTag = _TagCount;
             lock (_ListArgs)
             {
                 _ListArgs.Add(sendArg);
+                Log.Invoke("SocketDebug", "Init Tag" + sendArg.ArgsTag);
             }
             return sendArg;
         }
@@ -148,6 +161,7 @@ namespace Q.Lib.QSocket
         private void IO_Completed(object sender, SocketAsyncEventArgs e)
         {
             QSocketEventArgs mys = (QSocketEventArgs)e;
+
             // determine which type of operation just completed and call the associated handler  
             switch (e.LastOperation)
             {
@@ -155,7 +169,7 @@ namespace Q.Lib.QSocket
                     ProcessReceive(e);
                     break;
                 case SocketAsyncOperation.Send:
-                    mys.IsUsing = false; //数据发送已完成.状态设为False  
+                    mys.CanUsingTime = DateTime.Now.AddMinutes(5); //数据发送已完成.状态设为False  
                     ProcessSend(e);
                     break;
                 default:
@@ -224,7 +238,7 @@ namespace Q.Lib.QSocket
                                     if (msgStr.StartsWith("Ping"))
                                     {
                                         //保活消息
-                                        SendStr("Pong"+ msgStr.Substring(4));
+                                        SendStr("Pong" + msgStr.Substring(4));
                                     }
                                     else if (msgStr.StartsWith("Pong"))
                                     {
@@ -312,18 +326,22 @@ namespace Q.Lib.QSocket
         private void SendStr(string str)
         {
             var sendData = WriteStream(str);
-            QSocketEventArgs sendArgs = _ListArgs.Find(a => a.IsUsing == false);
-
+            QSocketEventArgs sendArgs = _ListArgs.Find(a => a.CanUsingTime < DateTime.Now);
             if (sendArgs == null)
             {
                 sendArgs = InitSendArgs();
             }
+
             lock (sendArgs)
             {
-                sendArgs.IsUsing = true;
+                sendArgs.CanUsingTime = DateTime.MaxValue;
                 sendArgs.SetBuffer(sendData, 0, sendData.Length);
             }
-            _ClientSocket.SendAsync(sendArgs);
+            if (!_ClientSocket.SendAsync(sendArgs))
+            {
+                sendArgs.CanUsingTime = DateTime.Now.AddSeconds(5);
+                ProcessSend(sendArgs);
+            }
             if (Log != null)
             {
                 if (str.StartsWith("Ping"))
@@ -358,7 +376,7 @@ namespace Q.Lib.QSocket
                     var sendStr = Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand });
                     var sendData = WriteStream(sendStr);
 
-                    QSocketEventArgs sendArgs = _ListArgs.Find(a => a.IsUsing == false);
+                    QSocketEventArgs sendArgs = _ListArgs.Find(a => a.CanUsingTime < DateTime.Now);
 
                     if (sendArgs == null)
                     {
@@ -366,11 +384,15 @@ namespace Q.Lib.QSocket
                     }
                     lock (sendArgs)
                     {
-                        sendArgs.IsUsing = true;
+                        sendArgs.CanUsingTime = DateTime.MaxValue;
                         sendArgs.SetBuffer(sendData, 0, sendData.Length);
 
                     }
-                    _ClientSocket.SendAsync(sendArgs);
+                    if (!_ClientSocket.SendAsync(sendArgs))
+                    {
+                        sendArgs.CanUsingTime = DateTime.Now.AddSeconds(5);
+                        ProcessSend(sendArgs);
+                    }
                     if (Log != null)
                     {
                         Task.Run(() => { Log.Invoke("Send", sendStr); });
@@ -399,7 +421,7 @@ namespace Q.Lib.QSocket
                     string callBackCommand = $"CallBack_{command}_{QTools.RandomCode(5)}";
                     var sendStr = Json.ToJsonStr(new { Command = command, Data = param, CallBackCommand = callBackCommand });
                     var sendData = WriteStream(sendStr);
-                    QSocketEventArgs sendArgs = _ListArgs.Find(a => a.IsUsing == false);
+                    QSocketEventArgs sendArgs = _ListArgs.Find(a => a.CanUsingTime < DateTime.Now);
 
                     if (sendArgs == null)
                     {
@@ -407,7 +429,7 @@ namespace Q.Lib.QSocket
                     }
                     lock (sendArgs)
                     {
-                        sendArgs.IsUsing = true;
+                        sendArgs.CanUsingTime = DateTime.MaxValue;
                         sendArgs.SetBuffer(sendData, 0, sendData.Length);
                     }
                     _CallBacks.TryAdd(callBackCommand, (r) =>
@@ -416,7 +438,11 @@ namespace Q.Lib.QSocket
                         ack = r;
                         resetEvent.Set();
                     });
-                    _ClientSocket.SendAsync(sendArgs);
+                    if (!_ClientSocket.SendAsync(sendArgs))
+                    {
+                        sendArgs.CanUsingTime = DateTime.Now.AddSeconds(5);
+                        ProcessSend(sendArgs);
+                    };
                     if (Log != null)
                     {
                         Task.Run(() => { Log.Invoke("Send", sendStr); });
