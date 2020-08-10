@@ -12,7 +12,7 @@ namespace Q.Lib.Utility
     /// 懒加载对象键值缓存
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class LazyCache<T> where T:new()
+    public class LazyCache<T>
     {
         ConcurrentDictionary<string, LazyCacheItem<T>> _Items = new ConcurrentDictionary<string, LazyCacheItem<T>>();
         Func<string, T> _Func = null;
