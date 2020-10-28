@@ -9,6 +9,7 @@ namespace Q.Lib
     public static class QCrontab
     {
         static Timer timer = new Timer(Run, null, 0, 1000);
+        public static bool ShowRunLog = true;
 
         static ConcurrentDictionary<string, QCrontabJob> actions = new ConcurrentDictionary<string, QCrontabJob>();
 
@@ -50,13 +51,13 @@ namespace Q.Lib
             }
         }
 
-        public static string RunWithDelay(int second, Action action, string name = "",string taskID=null)
+        public static string RunWithDelay(int second, Action action, string name = "", string taskID = null)
         {
 
             var runTime = DateTime.Now.AddSeconds(second);
             string id = QTools.GuidStr();
             QCrontabJob qcj = new QCrontabJob();
-            qcj.ID = taskID?? id;
+            qcj.ID = taskID ?? id;
             qcj.Name = name;
             qcj.action = action;
             qcj.RunMode = 0;
@@ -77,7 +78,7 @@ namespace Q.Lib
         {
             if (second < 0 || second > 59)
             {
-               var err= "Error:时间点无效";
+                var err = "Error:时间点无效";
                 err.SendLog_Exception();
                 return err;
             }
@@ -132,7 +133,7 @@ namespace Q.Lib
         /// <param name="p"></param>
         public static void CancleTask(string taskID)
         {
-           if( actions.TryRemove(taskID,out QCrontabJob qcj))
+            if (actions.TryRemove(taskID, out QCrontabJob qcj))
             {
                 QLog.SendLog($"定时任务 {qcj.Name}({qcj.ID}) 已取消");
             }
@@ -297,7 +298,8 @@ namespace Q.Lib
                         {
                             if (t % _x.Value.Second == _x.Value.RemainderSecond)
                             {
-                                QLog.SendLog_Debug("Run", $"{_x.Value.Name}({_x.Key})");
+                                if (ShowRunLog)
+                                    QLog.SendLog_Debug("Run", $"{_x.Value.Name}({_x.Key})");
 
                                 try
                                 {
@@ -314,7 +316,8 @@ namespace Q.Lib
                         {
                             if (t == _x.Value.Second)
                             {
-                                QLog.SendLog_Debug("Run", $"{_x.Value.Name}({_x.Key})");
+                                if (ShowRunLog)
+                                    QLog.SendLog_Debug("Run", $"{_x.Value.Name}({_x.Key})");
 
                                 try
                                 {
@@ -337,7 +340,8 @@ namespace Q.Lib
                                 (_x.Value.SDay == -1 || now.Day == _x.Value.SDay) &&
                                 (_x.Value.SMonth == -1 || now.Month == _x.Value.SMonth))
                             {
-                                QLog.SendLog_Debug("Run", $"{_x.Value.Name}({_x.Key})");
+                                if (ShowRunLog)
+                                    QLog.SendLog_Debug("Run", $"{_x.Value.Name}({_x.Key})");
 
                                 try
                                 {
@@ -359,7 +363,8 @@ namespace Q.Lib
                                 (_x.Value.SHour == -1 || now.Hour == _x.Value.SHour) &&
                                 (_x.Value.SWeek == -1 || (int)now.DayOfWeek == _x.Value.SWeek))
                             {
-                                QLog.SendLog_Debug("Run", $"{_x.Value.Name}({_x.Key})");
+                                if (ShowRunLog)
+                                    QLog.SendLog_Debug("Run", $"{_x.Value.Name}({_x.Key})");
 
                                 try
                                 {
