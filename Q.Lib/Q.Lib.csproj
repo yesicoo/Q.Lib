@@ -1,15 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>NET46;NET472;netstandard2.0;netcoreapp2.2</TargetFrameworks>
+    <TargetFrameworks>NET46;netstandard2.0;netstandard2.1</TargetFrameworks>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Authors>XuQing</Authors>
     <Company>XuQing</Company>
-    <PackageReleaseNotes>一款常用工具合集，简单的socket服务客户端，日志记录，数据转换等</PackageReleaseNotes>
-    <Version>1.0.5.22</Version>
-    <Description>缓存添加手动新增方法 和 获取后立即移除方法</Description>
+    <PackageReleaseNotes>一款常用工具合集，日志记录，数据转换等</PackageReleaseNotes>
+    <Version>1.0.6.0</Version>
+    <Description>独立Q.Lib.QSocket.dll</Description>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
