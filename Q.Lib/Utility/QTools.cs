@@ -297,5 +297,21 @@ namespace Q.Lib
                 return default(T);
             }
         }
+        internal static bool IsNOE(string value)
+        {
+            return string.IsNullOrEmpty(value);
+        }
+
+        internal static string IfNOE(string value, string defaultValue = null)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return defaultValue;
+            }
+            else
+            {
+                return value;
+            }
+        }
     }
 }
