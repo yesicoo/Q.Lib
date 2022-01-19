@@ -12,16 +12,16 @@ namespace Q.Lib.Utility
     /// 懒加载对象键值缓存
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class LazyCache<T>
+    public class TimeOutDic<T>
     {
-        ConcurrentDictionary<string, LazyCacheItem<T>> _Items = new ConcurrentDictionary<string, LazyCacheItem<T>>();
+        ConcurrentDictionary<string, CacheItem<T>> _Items = new ConcurrentDictionary<string, CacheItem<T>>();
         Func<string, T> _Func = null;
         int _ClearMin = 0;
-        public LazyCache(int min, Func<string, T> func)
+        public TimeOutDic( Func<string, T> func, int min = 5)
         {
             _Func = func;
             _ClearMin = min;
-            QCrontab.RunWithSecond(60, () => ClearOldData(), typeof(T) + "缓存对象清理");
+            QCrontab.RunWithSecond(60, () => ClearOldData(), typeof(T) + "缓存对象清理-LazyCache");
         }
 
         private void ClearOldData()
@@ -40,7 +40,7 @@ namespace Q.Lib.Utility
         /// <param name="t"></param>
         public void AddValue(string key, T t)
         {
-            _Items.TryAdd(key, new LazyCacheItem<T> { Item = t, Expire = DateTime.Now });
+            _Items.TryAdd(key, new CacheItem<T> { Item = t, Expire = DateTime.Now });
         }
         /// <summary>
         /// 获取缓存值
@@ -60,7 +60,7 @@ namespace Q.Lib.Utility
                     var item = _Func(key);
                     if (item != null)
                     {
-                        _Items.TryAdd(key, new LazyCacheItem<T> { Item = item, Expire = DateTime.Now });
+                        _Items.TryAdd(key, new CacheItem<T> { Item = item, Expire = DateTime.Now });
                         return item;
                     }
                     else

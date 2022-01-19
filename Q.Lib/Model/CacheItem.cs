@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Q.Lib.Model
 {
-   internal class LazyCacheItem<T>
+   internal class CacheItem<T>
     {
         public T Item { set; get; }
         public DateTime Expire { set; get; }
