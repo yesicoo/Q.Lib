@@ -6,7 +6,7 @@ using System.Text;
 
 namespace Q.Lib.Utility
 {
-    internal class TimeOutGroupList<T>
+    public class TimeOutGroupList<T>
     {
         ConcurrentDictionary<string, List<CacheItem<T>>> _GroupItems = new ConcurrentDictionary<string, List<CacheItem<T>>>();  
 
