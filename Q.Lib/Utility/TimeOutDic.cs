@@ -17,10 +17,12 @@ namespace Q.Lib.Utility
         ConcurrentDictionary<string, CacheItem<T>> _Items = new ConcurrentDictionary<string, CacheItem<T>>();
         Func<string, T> _Func = null;
         int _ClearMin = 0;
-        public TimeOutDic( Func<string, T> func, int min = 5)
+        bool _ClearToFunc = false;
+        public TimeOutDic(Func<string, T> func, int min = 5,bool clearToFunc=false)
         {
             _Func = func;
             _ClearMin = min;
+            _ClearToFunc = clearToFunc;
             QCrontab.RunWithSecond(60, () => ClearOldData(), typeof(T) + "缓存对象清理-LazyCache");
         }
 
@@ -30,6 +32,20 @@ namespace Q.Lib.Utility
             foreach (var key in keys)
             {
                 _Items.TryRemove(key, out var value);
+                if (_ClearToFunc)
+                {
+                    Task.Run(() =>
+                    {
+                        if (_Func != null)
+                        {
+                            var item = _Func(key);
+                            if (item != null)
+                            {
+                                _Items.TryAdd(key, new CacheItem<T> { Item = item, Expire = DateTime.Now });
+                            }
+                        }
+                    });
+                }
             }
         }
 
@@ -79,6 +95,20 @@ namespace Q.Lib.Utility
         {
             if (_Items.TryRemove(key, out var value))
             {
+                if (_ClearToFunc)
+                {
+                    Task.Run(() =>
+                {
+                    if (_Func != null)
+                    {
+                        var item = _Func(key);
+                        if (item != null)
+                        {
+                            _Items.TryAdd(key, new CacheItem<T> { Item = item, Expire = DateTime.Now });
+                        }
+                    }
+                });
+                }
                 return value.Item;
             }
             else
