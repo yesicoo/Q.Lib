@@ -34,5 +34,26 @@ namespace Q.Lib.Model
         {
            return Json.Convert2T<T>(this.ResData);
         }
+
+        public  AckItem ReSet( int rescode, string resdesc)
+        {
+            ResCode = rescode;
+            ResDesc = resdesc;
+            return this;
+        }
+        public  AckItem ReSet( object resdata)
+        {
+            ResData = resdata;
+            ResCode = 0;
+            ResDesc = "OK";
+            return this;
+        }
+        public  AckItem ReSet(int rescode, string resdesc, object resdata)
+        {
+            ResCode = rescode;
+            ResDesc = resdesc;
+            ResData = resdata;
+            return this;
+        }
     }
 }
