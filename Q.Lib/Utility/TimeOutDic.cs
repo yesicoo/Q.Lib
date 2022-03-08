@@ -18,7 +18,7 @@ namespace Q.Lib.Utility
         Func<string, T> _Func = null;
         int _ClearMin = 0;
         bool _ClearToFunc = false;
-        public TimeOutDic(Func<string, T> func, int min = 5,bool clearToFunc=false)
+        public TimeOutDic(Func<string, T> func, int min = 5, bool clearToFunc = false)
         {
             _Func = func;
             _ClearMin = min;
@@ -28,7 +28,7 @@ namespace Q.Lib.Utility
 
         private void ClearOldData()
         {
-            var keys = _Items.Where(x => x.Value.Expire < DateTime.Now.AddMinutes(-_ClearMin)).Select(x => x.Key).ToList();
+            var keys = _Items.Where(x => x.Value.Expire < DateTime.Now).Select(x => x.Key).ToList();
             foreach (var key in keys)
             {
                 _Items.TryRemove(key, out var value);
@@ -41,7 +41,7 @@ namespace Q.Lib.Utility
                             var item = _Func(key);
                             if (item != null)
                             {
-                                _Items.TryAdd(key, new CacheItem<T> { Item = item, Expire = DateTime.Now });
+                                _Items.TryAdd(key, new CacheItem<T> { Item = item, Expire = DateTime.Now.AddMinutes(_ClearMin) });
                             }
                         }
                     });
@@ -56,7 +56,47 @@ namespace Q.Lib.Utility
         /// <param name="t"></param>
         public void AddValue(string key, T t)
         {
-            _Items.TryAdd(key, new CacheItem<T> { Item = t, Expire = DateTime.Now });
+            _Items.TryAdd(key, new CacheItem<T> { Item = t, Expire = DateTime.Now.AddMinutes(_ClearMin) });
+        }
+
+        /// <summary>
+        /// 更新缓存值
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="t"></param>
+        /// <param name="delay"></param>
+        /// <returns></returns>
+        public bool UpdateValue(string key, T t, bool delay = true)
+        {
+            if (_Items.TryGetValue(key, out var value))
+            {
+                var obj = new CacheItem<T>();
+                obj.Item = t;
+                if (delay)
+                {
+                    obj.Expire = DateTime.Now.AddMinutes(_ClearMin);
+                }
+                else
+                {
+                    obj.Expire = value.Expire;
+                }
+              return  _Items.TryUpdate(key, obj, value);
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 延时
+        /// </summary>
+        /// <param name="key"></param>
+        public bool DelayValue(string key)
+        {
+            if (_Items.TryGetValue(key, out var value))
+            {
+                value.Expire = DateTime.Now.AddMinutes(_ClearMin);
+                return true;
+            }
+            return false;
         }
         /// <summary>
         /// 获取缓存值
@@ -76,7 +116,7 @@ namespace Q.Lib.Utility
                     var item = _Func(key);
                     if (item != null)
                     {
-                        _Items.TryAdd(key, new CacheItem<T> { Item = item, Expire = DateTime.Now });
+                        _Items.TryAdd(key, new CacheItem<T> { Item = item, Expire = DateTime.Now.AddMinutes(_ClearMin) });
                         return item;
                     }
                     else
@@ -104,7 +144,7 @@ namespace Q.Lib.Utility
                         var item = _Func(key);
                         if (item != null)
                         {
-                            _Items.TryAdd(key, new CacheItem<T> { Item = item, Expire = DateTime.Now });
+                            _Items.TryAdd(key, new CacheItem<T> { Item = item, Expire = DateTime.Now.AddMinutes(_ClearMin) });
                         }
                     }
                 });
