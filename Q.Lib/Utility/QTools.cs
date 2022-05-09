@@ -56,7 +56,7 @@ namespace Q.Lib
                 for (int i = 0; i < num; i++)
                 {
                     Random r = new Random(BitConverter.ToInt32(System.Guid.NewGuid().ToByteArray(), 0));
-                    sb.Append(chars[r.Next(0, length - 1)]);
+                    sb.Append(chars[r.Next(0, length)]);
                 }
                 var result = sb.ToString();
                 if (type == 2 || type == 4)
@@ -87,7 +87,7 @@ namespace Q.Lib
                 for (int i = 0; i < num; i++)
                 {
                     Random r = new Random(BitConverter.ToInt32(System.Guid.NewGuid().ToByteArray(), 0));
-                    sb.Append(chars[r.Next(0, length - 1)]);
+                    sb.Append(chars[r.Next(0, length)]);
                 }
                 return sb.ToString();
             }
@@ -114,7 +114,7 @@ namespace Q.Lib
                 for (int i = 0; i < num; i++)
                 {
                     Random r = new Random(BitConverter.ToInt32(System.Guid.NewGuid().ToByteArray(), 0));
-                    result[i]=(items[r.Next(0, length - 1)]);
+                    result[i]=(items[r.Next(0, length)]);
                 }
                 return result;
             }
