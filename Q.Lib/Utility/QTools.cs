@@ -70,6 +70,59 @@ namespace Q.Lib
                 return null;
             }
         }
+        /// <summary>
+        /// 随机生成字符串（自定义因子）
+        /// </summary>
+        /// <param name="num"></param>
+        /// <param name="chars"></param>
+        /// <returns></returns>
+        public static string RandomCode(int num, string chars)
+        {
+           
+            if (!string.IsNullOrEmpty(chars))
+            {
+                int length = chars.Length;
+                StringBuilder sb = new StringBuilder();
+
+                for (int i = 0; i < num; i++)
+                {
+                    Random r = new Random(BitConverter.ToInt32(System.Guid.NewGuid().ToByteArray(), 0));
+                    sb.Append(chars[r.Next(0, length - 1)]);
+                }
+                return sb.ToString();
+            }
+            else
+            {
+                return null;
+            }
+        }
+        /// <summary>
+        /// 随机元素
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="num"></param>
+        /// <param name="items"></param>
+        /// <returns></returns>
+        public static T[] RandomItem<T>(int num, T[] items)
+        {
+
+            if (items.Length>0)
+            {
+                int length = items.Length;
+                T[] result = new T[num];
+
+                for (int i = 0; i < num; i++)
+                {
+                    Random r = new Random(BitConverter.ToInt32(System.Guid.NewGuid().ToByteArray(), 0));
+                    result[i]=(items[r.Next(0, length - 1)]);
+                }
+                return result;
+            }
+            else
+            {
+                return default(T[]);
+            }
+        }
         #endregion
 
 

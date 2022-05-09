@@ -8,7 +8,7 @@
     <Authors>XuQing</Authors>
     <Company>XuQing</Company>
     <PackageReleaseNotes>一款常用工具合集，日志记录，数据转换等</PackageReleaseNotes>
-    <Version>1.0.8.6</Version>
+    <Version>1.0.8.7</Version>
     <Description>Ack增强</Description>
   </PropertyGroup>
   <ItemGroup>
