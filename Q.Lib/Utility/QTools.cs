@@ -103,9 +103,9 @@ namespace Q.Lib
         /// <param name="num"></param>
         /// <param name="items"></param>
         /// <returns></returns>
-        public static T[] RandomItem<T>(int num, T[] items)
+        public static T[] RandomItems<T>(int num, IEnumerable<T> ts)
         {
-
+            var items = ts.ToArray();
             if (items.Length>0)
             {
                 int length = items.Length;
@@ -121,6 +121,21 @@ namespace Q.Lib
             else
             {
                 return default(T[]);
+            }
+        }
+        public static T RandomItem<T>(IEnumerable<T> ts)
+        {
+            var items = ts.ToArray();
+            if (items.Length > 0)
+            {
+                int length = items.Length;
+
+                Random r = new Random(BitConverter.ToInt32(System.Guid.NewGuid().ToByteArray(), 0));
+                return (items[r.Next(0, length)]);
+            }
+            else
+            {
+                return default(T);
             }
         }
         #endregion
