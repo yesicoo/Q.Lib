@@ -8,8 +8,8 @@
     <Authors>XuQing</Authors>
     <Company>XuQing</Company>
     <PackageReleaseNotes>一款常用工具合集，日志记录，数据转换等</PackageReleaseNotes>
-    <Version>1.0.8.10</Version>
-    <Description>优化随机对象</Description>
+    <Version>1.0.8.11</Version>
+    <Description>添加删除实体类属性方法</Description>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />

@@ -405,23 +405,29 @@ namespace Q.Lib
             }
         }
 
-        public static object RemoveProperty(object obj,string[] PropertyNames)
+        public static object RemoveProperty(object obj, params string[] PropertyNames)
         {
             JObject jObj = JObject.FromObject(obj);
-            foreach (var name in PropertyNames)
+            if (PropertyNames.Length > 0)
             {
-                jObj.Remove(name);
+                foreach (var name in PropertyNames)
+                {
+                    jObj.Remove(name);
+                }
             }
             return jObj;
 
         }
 
-        public static T RemoveProperty<T>(object obj, string[] PropertyNames)
+        public static T RemoveProperty<T>(object obj,params string[] PropertyNames)
         {
             JObject jObj = JObject.FromObject(obj);
-            foreach (var name in PropertyNames)
+            if (PropertyNames.Length > 0)
             {
-                jObj.Remove(name);
+                foreach (var name in PropertyNames)
+                {
+                    jObj.Remove(name);
+                }
             }
             return jObj.ToObject<T>();
         }
