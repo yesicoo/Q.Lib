@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -403,5 +404,27 @@ namespace Q.Lib
                 return value;
             }
         }
+
+        public static object RemoveProperty(object obj,string[] PropertyNames)
+        {
+            JObject jObj = JObject.FromObject(obj);
+            foreach (var name in PropertyNames)
+            {
+                jObj.Remove(name);
+            }
+            return jObj;
+
+        }
+
+        public static T RemoveProperty<T>(object obj, string[] PropertyNames)
+        {
+            JObject jObj = JObject.FromObject(obj);
+            foreach (var name in PropertyNames)
+            {
+                jObj.Remove(name);
+            }
+            return jObj.ToObject<T>();
+        }
+
     }
 }
