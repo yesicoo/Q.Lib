@@ -18,7 +18,7 @@ namespace Q.Lib
         static System.Timers.Timer t_Writelog = new System.Timers.Timer(1000);
         static int LogCycle = 0;
         static string DirPath = string.Empty;
-        static string BasePath = Path.GetDirectoryName(typeof(QLog).Assembly.Location);
+        static string BasePath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
         static bool isRun = false; 
         public static Action<string> ExceptionLog;
         /// <summary>

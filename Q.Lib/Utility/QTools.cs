@@ -1,6 +1,8 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -430,6 +432,14 @@ namespace Q.Lib
                 }
             }
             return jObj.ToObject<T>();
+        }
+        /// <summary>
+        /// 获取程序运行目录
+        /// </summary>
+        /// <returns></returns>
+        public static string GetRuningDirPath()
+        {
+            return Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
         }
 
     }
